@@ -1,1359 +1,1388 @@
-import tester.*; // The tester library
-import javalib.worldimages.*; // images, like RectangleImage or OverlayImages
-import javalib.funworld.*; // the abstract World class and the big-bang library
-import javalib.worldcanvas.WorldCanvas; //used in the commented out methods
-import java.awt.Color; // general colors (as triples of red,green,blue values)
-// and predefined colors (Color.RED, Color.GRAY, etc.)
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.Random;
+import tester.*;
+import javalib.impworld.*;
+import java.awt.Color;
+import javalib.worldimages.*;
 
-/*
- * A FEW NOTES
- * 
- * Each list of colors is represented from oldest to newest, rather than newest to oldest.
- * For example, a list inputed as (cons "yellow" (cons "red"(cons "green"))) is represnted as 
- * "green circle" "red circle" "yellow circle" on the canvas. This is done because it easily 
- * aligns with the design of the data structures and accessing them to draw. 
- */
+//fix the tests
+// fix the "you win"
 
-class Utils {
-  
-  /*
-   * TEMPLATE 
-   * Methods:
-   * 
-   * ... this.checkLessThan(int input, String msg) ... -- int
-   * ... this.checkEmpty(ILoColor colors, String msg) ... -- ILoColor
-   * ... this.checkEnoughColors(boolean hasDuplicates, int length, ILoColor colors, String msg) 
-   * ... -- boolean
-   * 
-   */
+// represents a node that is connected by a list of edges
+class Node {
 
-  // throws an exception if the input int is less than or equal to 0
-  public int checkLessThan(int input, String msg) {
-    
-    /*
-     * TEMPLATE 
-     * Parameters:
-     * ... input ... -- int
-     * ... msg ... -- String
-     */
-    
-    if (input <= 0) {
-      throw new IllegalArgumentException(msg);
+  // We are aware there probably should be more fields in Node
+  // but for now, we are just focused on creating the Maze itself
+  ArrayList<Edge> outedges;
+
+  Color color;
+
+  Node(ArrayList<Edge> outedges) {
+    this.outedges = outedges;
+    this.color = Color.gray;
+  }
+
+  // empty constructor if the constructed Node has no edges
+  Node() {
+    this.outedges = new ArrayList<Edge>();
+    this.color = Color.gray;
+  }
+
+  // EFFECT:connects this Node to the given Node through an edge
+  // of the given weight
+  // returns the edge that was created to connect the two nodes
+  public Edge connect(Node other, int weight) {
+    Edge temp = new Edge(this, other, weight);
+    this.outedges.add(temp);
+    other.outedges.add(temp);
+    return temp;
+  }
+
+  // returns true if this node is connected to the given node
+  // through any of its outedges
+  public boolean isConnected(Node other) {
+    for (Edge e : this.outedges) {
+      if (e.connectsThisToThat(this, other)) {
+        return true;
+      }
     }
-    else {
-      return input;
-    }
-  }
-
-  // throws an exception if the length of the given list of colors is 0
-  public ILoColor checkEmpty(ILoColor colors, String msg) {
-    
-    /*
-     * TEMPLATE 
-     * Parameters:
-     * ... colors ... -- ILoColor
-     * ... msg ... -- String
-     * 
-     * Methods on Parameters:
-     * ... colors.length() ... -- int
-     * ... colors.sameColorHelper(Color color, ILoColor that) ... -- int
-     * ... colors.exactColorInList(ILoColor that) ... -- int
-     * ... colors.remove(Color color) ... -- int
-     * ... colors.removeAll(Color color) ... -- ILoColor
-     * ... colors.inexactColorInList(ILoColor that) ... -- int 
-     * ... colors.hasColor(Color color) ... boolean
-     * ... colors.inexactFinal(ILoColor that) ... -- int
-     * ... colors.getColor(int num) ... -- Color
-     * ... colors.removeFirst() ... -- ILoColor 
-     * ... colors.drawCircles(WorldImage bkg) ... -- WorldImage
-     * ... colors.drawTotalComparison(ILoColor that, WorldImage bkg) ... -- WorldImage
-     * ... colors.createRandom(boolean hasRepeats, int length, Random rand) ... -- ILoColor
-     */
-    
-    if (colors.length() == 0) {
-      throw new IllegalArgumentException(msg);
-    }
-    else {
-      return colors;
-    }
-  }
-
-  // checks to see if there are enough colors to fill the length of the solution
-  // list
-  // only relevant if the list does not allow duplicates
-  public boolean checkEnoughColors(boolean hasDuplicates, int length, ILoColor colors, String msg) {
-    
-    /*
-     * TEMPLATE 
-     * Parameters:
-     * ... hasDuplicates ... -- boolean
-     * ... length ... -- int
-     * ... colors ... -- ILoColor
-     * ... msg ... -- String
-     * 
-     * Methods on Parameters:
-     * ... colors.length() ... -- int
-     * ... colors.sameColorHelper(Color color, ILoColor that) ... -- int
-     * ... colors.exactColorInList(ILoColor that) ... -- int
-     * ... colors.remove(Color color) ... -- int
-     * ... colors.removeAll(Color color) ... -- ILoColor
-     * ... colors.inexactColorInList(ILoColor that) ... -- int 
-     * ... colors.hasColor(Color color) ... boolean
-     * ... colors.inexactFinal(ILoColor that) ... -- int
-     * ... colors.getColor(int num) ... -- Color
-     * ... colors.removeFirst() ... -- ILoColor 
-     * ... colors.drawCircles(WorldImage bkg) ... -- WorldImage
-     * ... colors.drawTotalComparison(ILoColor that, WorldImage bkg) ... -- WorldImage
-     * ... colors.createRandom(boolean hasRepeats, int length, Random rand) ... -- ILoColor
-     */
-    
-    if (!hasDuplicates && colors.length() < length) {
-      throw new IllegalArgumentException(msg);
-    }
-    else {
-      return hasDuplicates;
-    }
-  }
-}
-
-//represents a list of Colors
-interface ILoColor {
-
-  // returns the length of this list
-  public int length();
-
-  // returns the number of colors in the same exact position as the given list
-  public int sameColorHelper(Color color, ILoColor that);
-
-  // returns the number of colors in the same exact position as the given list
-  public int exactColorInList(ILoColor that);
-
-  // removes the given color that is the same color as the first circle in this
-  // list
-  public ILoColor remove(Color color);
-
-  // removes the given color that is the same color as the first circle in this
-  // list
-  public ILoColor removeAll(Color color);
-
-  // returns the number of the shared colors in this list with the given list
-  public int inexactColorInList(ILoColor that);
-
-  // checks if the given color exists in this list;
-  public boolean hasColor(Color color);
-
-  // returns the number of shared colors - the number of exact colors
-  public int inexactFinal(ILoColor that);
-
-  // returns the color the corresponds to the given number
-  public Color getColor(int num);
-
-  // removes the first color in this list
-  public ILoColor removeFirst();
-
-  // draws all the colors as circles in this list next to each other
-  public WorldImage drawCircles(WorldImage bkg);
-
-  // draws an image of two numbers, the exact and inexact shared colors of this
-  // list compared to the given list
-  public WorldImage drawTotalComparison(ILoColor that, WorldImage bkg);
-
-  // creates a random ILoColor with the colors that are included in this ILoColor
-  public ILoColor createRandom(boolean hasRepeats, int length, Random rand);
-}
-
-
-// represents the empty list of circles class
-class MtLoColor implements ILoColor {
-
-  /*
-   * TEMPLATE
-   * 
-   * METHODS
-   * 
-   * ... this.length() ... -- int
-   * ... this.sameColorHelper(Color color, ILoColor that) ... -- int
-   * ... this.exactColorInList(ILoColor that) ... -- int
-   * ... this.remove(Color color) ... -- int
-   * ... this.removeAll(Color color) ... -- ILoColor
-   * ... this.inexactColorInList(ILoColor that) ... -- int 
-   * ... this.hasColor(Color color) ... boolean
-   * ... this.inexactFinal(ILoColor that) ... -- int
-   * ... this.getColor(int num) ... -- Color
-   * ... this.removeFirst() ... -- ILoColor 
-   * ... this.drawCircles(WorldImage bkg) ... -- WorldImage
-   * ... this.drawTotalComparison(ILoColor that, WorldImage bkg) ... -- WorldImage
-   * ... this.createRandom(boolean hasRepeats, int length, Random rand) ... -- ILoColor
-   * 
-   */
-  
-  // checks the length of the given list
-  public int length() {
-    return 0;
-  }
-
-  // draws all circles in a row onto the given background
-  public WorldImage drawList(WorldImage image) {
-    return image;
-  }
-
-  // returns the number of colors in the same exact position as the given list
-  public int sameColorHelper(Color color, ILoColor that) {
-    return 0;
-  }
-
-  // returns the number of colors in the same exact position as the given list
-  public int exactColorInList(ILoColor that) {
-    return 0;
-  }
-
-  // returns the empty list
-  public ILoColor remove(Color color) {
-    return this;
-  }
-
-  // returns the empty list
-  public ILoColor removeAll(Color color) {
-    return this;
-  }
-
-  // returns the number of the shared colors in this list with the given list
-  public int inexactColorInList(ILoColor that) {
-    return 0;
-  }
-
-  // checks if the given color exists in this list;
-  public boolean hasColor(Color color) {
     return false;
   }
 
-  // returns the number of shared colors - the number of exact colors
-  public int inexactFinal(ILoColor that) {
-    return 0;
-  }
-
-  // returns the color the corresponds to the given number
-  public Color getColor(int num) {
-    throw new IllegalStateException("Number too large for this list: " + Integer.toString(num));
-  }
-
-  // removes the first color in this list
-  public ILoColor removeFirst() {
-    return this;
-  }
-
-  // returns the accumulated bkg
-  public WorldImage drawCircles(WorldImage bkg) {
-    return bkg;
-  }
-
-  // returns the accumulated bkg
-  public WorldImage drawTotalComparison(ILoColor that, WorldImage bkg) {
-    return bkg;
-  }
-
-  // creates a random ILoColor based on the given length, random value, and
-  // whether or not it can
-  // have repeats. Uses this ILoColor as a list of possible colors to include.
-  public ILoColor createRandom(boolean hasRepeats, int length, Random rand) {
-    return this;
+  // removes the given edge from this.outedges
+  public void remove(Edge e) {
+    this.outedges.remove(e);
   }
 }
 
-// represents the non-empty list of circles class
-class ConsLoColor implements ILoColor {
-  Color first;
-  ILoColor rest;
+// represents an edge that connects the two nodes
+class Edge {
+  Node from;
+  Node to;
+  int weight; // how expensive is the edge;
 
-  ConsLoColor(Color first, ILoColor rest) {
-    this.first = first;
-    this.rest = rest;
-  }
-  
-  /*
-   * TEMPLATE
-   * 
-   * FIELDS
-   * 
-   * ... this.first ... -- Color
-   * ... this.rest ... -- ILoColor
-   * 
-   * METHODS
-   * 
-   * ... this.length() ... -- int
-   * ... this.sameColorHelper(Color color, ILoColor that) ... -- int
-   * ... this.exactColorInList(ILoColor that) ... -- int
-   * ... this.remove(Color color) ... -- int
-   * ... this.removeAll(Color color) ... -- ILoColor
-   * ... this.inexactColorInList(ILoColor that) ... -- int 
-   * ... this.hasColor(Color color) ... boolean
-   * ... this.inexactFinal(ILoColor that) ... -- int
-   * ... this.getColor(int num) ... -- Color
-   * ... this.removeFirst() ... -- ILoColor 
-   * ... this.drawCircles(WorldImage bkg) ... -- WorldImage
-   * ... this.drawTotalComparison(ILoColor that, WorldImage bkg) ... -- WorldImage
-   * ... this.createRandom(boolean hasRepeats, int length, Random rand) ... -- ILoColor
-   * 
-   * METHODS FOR FIELDS
-   * ... this.rest.length() ... -- int
-   * ... this.rest.sameColorHelper(Color color, ILoColor that) ... -- int
-   * ... this.rest.exactColorInList(ILoColor that) ... -- int
-   * ... this.rest.remove(Color color) ... -- int
-   * ... this.rest.removeAll(Color color) ... -- ILoColor
-   * ... this.rest.inexactColorInList(ILoColor that) ... -- int 
-   * ... this.rest.hasColor(Color color) ... boolean
-   * ... this.rest.inexactFinal(ILoColor that) ... -- int
-   * ... this.rest.getColor(int num) ... -- Color
-   * ... this.rest.removeFirst() ... -- ILoColor 
-   * ... this.rest.drawCircles(WorldImage bkg) ... -- WorldImage
-   * ... this.rest.drawTotalComparison(ILoColor that, WorldImage bkg) ... -- WorldImage
-   * ... this.rest.createRandom(boolean hasRepeats, int length, Random rand) ... -- ILoColor
-   */
-
-  // checks the length of the given list
-  public int length() {
-    return this.rest.length() + 1;
+  public Edge(Node from, Node to, int weight) {
+    this.from = from;
+    this.to = to;
+    this.weight = weight;
   }
 
-  // returns the number of colors in the same exact position as the given list
-  public int sameColorHelper(Color color, ILoColor that) {
-    
-    /*
-     * TEMPLATE
-     * 
-     * Parameters:
-     * ... color ... -- Color
-     * ... that ... -- ILoColor
-     * 
-     * Method on Parameter:
-     * ... that.length() ... -- int
-     * ... that.sameColorHelper(Color color, ILoColor that) ... -- int
-     * ... that.exactColorInList(ILoColor that) ... -- int
-     * ... that.remove(Color color) ... -- int
-     * ... that.removeAll(Color color) ... -- ILoColor
-     * ... that.inexactColorInList(ILoColor that) ... -- int 
-     * ... that.hasColor(Color color) ... boolean
-     * ... that.inexactFinal(ILoColor that) ... -- int
-     * ... that.getColor(int num) ... -- Color
-     * ... that.removeFirst() ... -- ILoColor 
-     * ... that.drawCircles(WorldImage bkg) ... -- WorldImage
-     * ... that.drawTotalComparison(ILoColor that, WorldImage bkg) ... -- WorldImage
-     * ... that.createRandom(boolean hasRepeats, int length, Random rand) ... -- ILoColor
-     */
-    
-    if (this.first.equals(color)) {
-      return 1 + this.rest.exactColorInList(that);
+  // returns true if this edge connects the two given Nodes
+  public boolean connectsThisToThat(Node n1, Node n2) {
+    return (this.from.equals(n1) && this.to.equals(n2))
+        || (this.from.equals(n2) && this.to.equals(n1));
+  }
+
+  // removes this edge from both from and to
+  public void removeThisEdge() {
+    this.from.remove(this);
+    this.to.remove(this);
+  }
+
+  // returns the other node that this edge connects to
+  public Node otherNode(Node curr) {
+    if (this.to.equals(curr)) {
+      return this.from;
+    }
+    else if (this.from.equals(curr)) {
+      return this.to;
     }
     else {
-      return this.rest.exactColorInList(that);
-    }
-  }
-
-  // returns the number of colors in the same exact position as the given list
-  public int exactColorInList(ILoColor that) {
-    /*
-     * TEMPLATE
-     * 
-     * Parameters:
-     * ... that ... -- ILoColor
-     * 
-     * Method on Parameter:
-     * ... that.length() ... -- int
-     * ... that.sameColorHelper(Color color, ILoColor that) ... -- int
-     * ... that.exactColorInList(ILoColor that) ... -- int
-     * ... that.remove(Color color) ... -- int
-     * ... that.removeAll(Color color) ... -- ILoColor
-     * ... that.inexactColorInList(ILoColor that) ... -- int 
-     * ... that.hasColor(Color color) ... boolean
-     * ... that.inexactFinal(ILoColor that) ... -- int
-     * ... that.getColor(int num) ... -- Color
-     * ... that.removeFirst() ... -- ILoColor 
-     * ... that.drawCircles(WorldImage bkg) ... -- WorldImage
-     * ... that.drawTotalComparison(ILoColor that, WorldImage bkg) ... -- WorldImage
-     * ... that.createRandom(boolean hasRepeats, int length, Random rand) ... -- ILoColor
-     */
-    
-    return that.sameColorHelper(this.first, this.rest);
-  }
-
-  // removes the given color that is the same color as the first circle in this
-  // list
-  public ILoColor remove(Color color) {
-    
-    /*
-     * TEMPLATE
-     * 
-     * Parameters:
-     * ... color ... -- Color
-     */
-    
-    if (this.first.equals(color)) {
-      return this.rest;
-    }
-    else {
-      return new ConsLoColor(this.first, this.rest.remove(color));
-    }
-  }
-
-  // removes the all of the colors from the list that are the same as the given
-  // color
-  public ILoColor removeAll(Color color) {
-    
-    /*
-     * TEMPLATE
-     * 
-     * Parameters:
-     * ... color ... -- Color
-     */
-    
-    if (this.first.equals(color)) {
-      return this.rest.removeAll(color);
-    }
-    else {
-      return new ConsLoColor(this.first, this.rest.remove(color));
-    }
-  }
-
-  // returns the number of the shared colors in this list with the given list
-  // this represents the solution list, while that represents the given list
-  public int inexactColorInList(ILoColor that) {
-    
-    /*
-     * TEMPLATE
-     * 
-     * Parameters:
-     * ... that ... -- ILoColor
-     * 
-     * Method on Parameter:
-     * ... that.length() ... -- int
-     * ... that.sameColorHelper(Color color, ILoColor that) ... -- int
-     * ... that.exactColorInList(ILoColor that) ... -- int
-     * ... that.remove(Color color) ... -- int
-     * ... that.removeAll(Color color) ... -- ILoColor
-     * ... that.inexactColorInList(ILoColor that) ... -- int 
-     * ... that.hasColor(Color color) ... boolean
-     * ... that.inexactFinal(ILoColor that) ... -- int
-     * ... that.getColor(int num) ... -- Color
-     * ... that.removeFirst() ... -- ILoColor 
-     * ... that.drawCircles(WorldImage bkg) ... -- WorldImage
-     * ... that.drawTotalComparison(ILoColor that, WorldImage bkg) ... -- WorldImage
-     * ... that.createRandom(boolean hasRepeats, int length, Random rand) ... -- ILoColor
-     */
-    
-    if (that.hasColor(this.first)) {
-      return 1 + this.rest.inexactColorInList(that.remove(this.first));
-    }
-    else {
-      return this.rest.removeAll(this.first).inexactColorInList(that);
-    }
-  }
-
-  // checks if the given color exists in this list;
-  public boolean hasColor(Color color) {
-    
-    /*
-     * TEMPLATE
-     * 
-     * Parameters:
-     * ... color ... -- Color
-     */
-    
-    return this.first == color || this.rest.hasColor(color);
-  }
-
-  // returns the number of shared colors - the number of exact colors
-  public int inexactFinal(ILoColor that) {
-    
-    /*
-     * TEMPLATE
-     * 
-     * Parameters:
-     * ... that ... -- ILoColor
-     * 
-     * Method on Parameter:
-     * ... that.length() ... -- int
-     * ... that.sameColorHelper(Color color, ILoColor that) ... -- int
-     * ... that.exactColorInList(ILoColor that) ... -- int
-     * ... that.remove(Color color) ... -- int
-     * ... that.removeAll(Color color) ... -- ILoColor
-     * ... that.inexactColorInList(ILoColor that) ... -- int 
-     * ... that.hasColor(Color color) ... boolean
-     * ... that.inexactFinal(ILoColor that) ... -- int
-     * ... that.getColor(int num) ... -- Color
-     * ... that.removeFirst() ... -- ILoColor 
-     * ... that.drawCircles(WorldImage bkg) ... -- WorldImage
-     * ... that.drawTotalComparison(ILoColor that, WorldImage bkg) ... -- WorldImage
-     * ... that.createRandom(boolean hasRepeats, int length, Random rand) ... -- ILoColor
-     */
-    
-    return this.inexactColorInList(that) - this.exactColorInList(that);
-  }
-
-  // returns the color the corresponds to the given number
-  // NOTE: This method fetches the color with respect to the oldest value in this
-  // list
-  // for example, if num = 1, it would get the oldest/inner-most value in this
-  // list.
-  public Color getColor(int num) {
-    
-    /*
-     * TEMPLATE
-     * 
-     * Parameters:
-     * ... num ... -- int
-     */
-    
-    if (num == this.length()) {
-      return this.first;
-    }
-    else {
-      return this.rest.getColor(num);
-    }
-  }
-
-  // removes the first color in this list
-  public ILoColor removeFirst() {
-    return this.rest;
-  }
-
-  // draws the circles on the given background
-  public WorldImage drawCircles(WorldImage bkg) {
-    
-    /*
-     * TEMPLATE
-     * 
-     * Parameters:
-     * ... bkg ... -- WorldImage
-     */
-    
-    WorldImage circle = new CircleImage(22, OutlineMode.SOLID, this.first);
-    WorldImage rect = new RectangleImage(50, 50, OutlineMode.OUTLINE, Color.gray);
-    return this.rest.drawCircles(new BesideImage(new OverlayImage(circle, rect), bkg));
-  }
-
-  // draws the 2 numbers (inexact guesses and inexact guesses) on the board
-  public WorldImage drawTotalComparison(ILoColor that, WorldImage bkg) {
-    
-    /*
-     * TEMPLATE
-     * 
-     * Parameters:
-     * ... that ... -- ILoColor
-     * 
-     * Method on Parameter:
-     * ... that.length() ... -- int
-     * ... that.sameColorHelper(Color color, ILoColor that) ... -- int
-     * ... that.exactColorInList(ILoColor that) ... -- int
-     * ... that.remove(Color color) ... -- int
-     * ... that.removeAll(Color color) ... -- ILoColor
-     * ... that.inexactColorInList(ILoColor that) ... -- int 
-     * ... that.hasColor(Color color) ... boolean
-     * ... that.inexactFinal(ILoColor that) ... -- int
-     * ... that.getColor(int num) ... -- Color
-     * ... that.removeFirst() ... -- ILoColor 
-     * ... that.drawCircles(WorldImage bkg) ... -- WorldImage
-     * ... that.drawTotalComparison(ILoColor that, WorldImage bkg) ... -- WorldImage
-     * ... that.createRandom(boolean hasRepeats, int length, Random rand) ... -- ILoColor
-     */
-    
-    return new BesideImage(
-        new OverlayImage(
-            new TextImage(Integer.toString(this.exactColorInList(that)), 30, Color.black),
-            new RectangleImage(50, 50, OutlineMode.OUTLINE, Color.gray)),
-        new OverlayImage(new TextImage(Integer.toString(this.inexactFinal(that)), 30, Color.black),
-            new RectangleImage(50, 50, OutlineMode.OUTLINE, Color.gray)));
-  }
-
-  // creates a random ILoColor based on the given length, random value, and
-  // whether or not it can
-  // have repeats. Uses this ILoColor as a list of possible colors to include.
-  public ILoColor createRandom(boolean hasRepeats, int length, Random rand) {
-    
-    /*
-     * TEMPLATE
-     * 
-     * Parameters:
-     * ... hasRepeats ... -- boolean
-     * ... length ... -- int
-     * ... rand ... -- Random
-     */
-    
-    int randValue = rand.nextInt(this.length()) + 1;
-    Color randColor = this.getColor(randValue);
-
-    if (length == 0) {
-      return new MtLoColor();
-    }
-    else if (!hasRepeats) {
-      return new ConsLoColor(randColor,
-          this.remove(randColor).createRandom(hasRepeats, length - 1, rand));
-    }
-    else {
-      return new ConsLoColor(randColor, this.createRandom(hasRepeats, length - 1, rand));
+      throw new RuntimeException("given node is not a part of this edge");
     }
   }
 }
 
-// represents a list of list of colors
-interface ILoLoColor {
-  // returns the length of this OUTSIDE list
-  int lengthOfOuterList();
+class KruskalMaze {
+  HashMap<Node, Node> representatives;
+  // all edges in graph, sorted by edge weights
+  ArrayList<Edge> worklist;
+  // all edges that are not used in the algorithm
+  ArrayList<Edge> leftOver;
 
-  // returns a picture representing this ILoLoColor on the given background
-  WorldImage drawILoLoColor(WorldImage bkg);
-
-  // returns an image of the exact and inexact comparisons of each list in this
-  // list compared to the given list
-  WorldImage drawAllComparisons(ILoColor that, WorldImage bkg);
-}
-
-class MtLoLoColor implements ILoLoColor {
-
-  /*
-   * TEMPLATE
-   *
-   * METHODS
-   * 
-   * ... this.lengthOfOuterList() ... -- int
-   * ... this.drawILoLoColor(WorldImage bkg) ... -- WorldImage
-   * ... this.drawAllComparisons(ILoColor that, WorldImage bkg) ... -- WorldImage
-   */
-  
-  // returns the length of the empty list of list of colors
-  public int lengthOfOuterList() {
-    return 0;
+  KruskalMaze(HashMap<Node, Node> representatives, ArrayList<Edge> worklist) {
+    this.representatives = representatives;
+    this.worklist = worklist;
+    this.leftOver = new ArrayList<Edge>();
   }
 
-  // returns a picture representing this ILoLoColor on the given background
-  public WorldImage drawILoLoColor(WorldImage bkg) {
-    return bkg;
-  }
-
-  // returns the bkg that has been accumulating
-  public WorldImage drawAllComparisons(ILoColor that, WorldImage bkg) {
-    return bkg;
-  }
-
-}
-
-//represents a list of lists for ConsLoLoColor
-class ConsLoLoColor implements ILoLoColor {
-  ILoColor first;
-  ILoLoColor rest;
-
-  public ConsLoLoColor(ILoColor first, ILoLoColor rest) {
-    this.first = first;
-    this.rest = rest;
-  }
-  
-  /*
-   * TEMPLATE
-   * 
-   * FIELDS
-   * 
-   * ... this.first ... -- ILoColor
-   * ... this.rest ... -- ILoLoColor
-   * 
-   * METHODS
-   * 
-   * ... this.lengthOfOuterList() ... -- int
-   * ... this.drawILoLoColor(WorldImage bkg) ... -- WorldImage
-   * ... this.drawAllComparisons(ILoColor that, WorldImage bkg) ... -- WorldImage
-   * 
-   * METHODS FOR FIELDS
-   * 
-   * ... this.first.length() ... -- int
-   * ... this.first.sameColorHelper(Color color, ILoColor that) ... -- int
-   * ... this.first.exactColorInList(ILoColor that) ... -- int
-   * ... this.first.remove(Color color) ... -- int
-   * ... this.first.removeAll(Color color) ... -- ILoColor
-   * ... this.first.inexactColorInList(ILoColor that) ... -- int 
-   * ... this.first.hasColor(Color color) ... boolean
-   * ... this.first.inexactFinal(ILoColor that) ... -- int
-   * ... this.first.getColor(int num) ... -- Color
-   * ... this.first.removeFirst() ... -- ILoColor 
-   * ... this.first.drawCircles(WorldImage bkg) ... -- WorldImage
-   * ... this.first.drawTotalComparison(ILoColor that, WorldImage bkg) ... -- WorldImage
-   * ... this.first.createRandom(boolean hasRepeats, int length, Random rand) ... -- ILoColor
-   * 
-   * ... this.rest.lengthOfOuterList() ... -- int
-   * ... this.rest.drawILoLoColor(WorldImage bkg) ... -- WorldImage
-   * ... this.rest.drawAllComparisons(ILoColor that, WorldImage bkg) ... -- WorldImage
-   */
-
-  // represents the length of this list (importantly, the outer list, not the
-  // inner)
-  public int lengthOfOuterList() {
-    return 1 + this.rest.lengthOfOuterList();
-  }
-
-  // returns a picture representing this ILoLoColor on the given background
-  public WorldImage drawILoLoColor(WorldImage bkg) {
-    
-    /* TEMPLATE
-     * 
-     * Parameters:
-     * ... bkg ... -- WorldImage
-     */
-    
-    return this.rest.drawILoLoColor(
-        new AboveAlignImage(AlignModeX.LEFT, bkg, this.first.drawCircles(new EmptyImage())));
-  }
-
-  // returns a picture representing all of the comparisons to the given ILoColor
-  // for this ILoLoColor
-  public WorldImage drawAllComparisons(ILoColor that, WorldImage bkg) {
-    
-    /* TEMPLATE
-     * 
-     * Parameters:
-     * ... that ... -- ILoColor
-     * ... bkg ... -- WorldImage
-     * 
-     * Method on Parameters:
-     * ... that.rest.lengthOfOuterList() ... -- int
-     * ... that.rest.drawILoLoColor(WorldImage bkg) ... -- WorldImage
-     * ... that.rest.drawAllComparisons(ILoColor that, WorldImage bkg) ... -- WorldImage
-     */
-    
-    return new AboveAlignImage(AlignModeX.LEFT, this.first.drawTotalComparison(that, bkg),
-        this.rest.drawAllComparisons(that, new EmptyImage()));
-  }
-}
-
-// represents the class that runs the game MasterMind
-class MasterMindGame extends World {
-  boolean hasDuplicates; // can the solution have duplicates of colors?
-  int solutionLength; // length of solution
-  int guesses; // the number of complete rows of guesses remaining
-  ILoColor posColors; // the number of colors that can be used
-  ILoColor solution; // the list of colors that represents the solution
-  ILoColor currentGuess; // the list of colors that represents the current row of guesses
-  ILoLoColor pastGuesses; // the list of list of colors that includes all the past guesses
-
-  MasterMindGame(boolean hasDuplicates, int solutionLength, int guesses, ILoColor posColors,
-      ILoColor solution, ILoColor currentGuess, ILoLoColor pastGuesses) {
-    this.hasDuplicates = new Utils().checkEnoughColors(hasDuplicates, solutionLength, posColors,
-        "not enough colors");
-    this.solutionLength = new Utils().checkLessThan(solutionLength, "invalid solution length");
-    this.guesses = new Utils().checkLessThan(guesses, "invalid number of guesses");
-    this.posColors = new Utils().checkEmpty(posColors, "0 colors");
-    this.solution = solution;
-    this.currentGuess = currentGuess;
-    this.pastGuesses = pastGuesses;
-  }
-
-  /* TEMPLATE:
-   * Fields:
-   * ... this.hasDuplicates ...    -- boolean
-   * ... this.solutionLength ...  -- int
-   * ... this.guesses ...  -- int
-   * ... this.posColors ... -- ILoColor
-   * ... this.solution ... -- ILoColor
-   * ... this.currentGuess ... -- ILoColor
-   * ... this.pastGuess ... -- ILoLoColor
-   * 
-   * Methods:
-   * ... this.makeScene() ...  -- WorldScene
-   * ... this.makeBkg() ... -- WorldScene
-   * ... this.makeBlackRect() ... -- WorldImage
-   * ... this.drawPosColors() ... -- WorldImage
-   * ... this.makeEmptyCircles() ... -- WorldImage
-   * ... this.drawEmptyRows(int rows, WorldImage bkg) ... -- WorldImage
-   * ... this.drawOneRow(int remainingInRow, WorldImage bkg) ... -- WorldImage 
-   * ... this.lastScene(String msg) ... -- WorldScene
-   * 
-   * Methods on Fields :
-   * ... this.posColors.length() ... -- int
-   * ... this.posColors.sameColorHelper(Color color, ILoColor that) ... -- int
-   * ... this.posColors.exactColorInList(ILoColor that) ... -- int
-   * ... this.posColors.remove(Color color) ... -- int
-   * ... this.posColors.removeAll(Color color) ... -- ILoColor
-   * ... this.posColors.inexactColorInList(ILoColor that) ... -- int 
-   * ... this.posColors.hasColor(Color color) ... boolean
-   * ... this.posColors.inexactFinal(ILoColor that) ... -- int
-   * ... this.posColors.getColor(int num) ... -- Color
-   * ... this.posColors.removeFirst() ... -- ILoColor 
-   * ... this.posColors.drawCircles(WorldImage bkg) ... -- WorldImage
-   * ... this.posColors.drawTotalComparison(ILoColor that, WorldImage bkg) ... -- WorldImage
-   * ... this.posColors.createRandom(boolean hasRepeats, int length, Random rand) ... -- ILoColor
-   * 
-   * ... this.solution.length() ... -- int
-   * ... this.solution.sameColorHelper(Color color, ILoColor that) ... -- int
-   * ... this.solution.exactColorInList(ILoColor that) ... -- int
-   * ... this.solution.remove(Color color) ... -- int
-   * ... this.solution.removeAll(Color color) ... -- ILoColor
-   * ... this.solution.inexactColorInList(ILoColor that) ... -- int 
-   * ... this.solution.hasColor(Color color) ... boolean
-   * ... this.solution.inexactFinal(ILoColor that) ... -- int
-   * ... this.solution.getColor(int num) ... -- Color
-   * ... this.solution.removeFirst() ... -- ILoColor 
-   * ... this.solution.drawCircles(WorldImage bkg) ... -- WorldImage
-   * ... this.solution.drawTotalComparison(ILoColor that, WorldImage bkg) ... -- WorldImage
-   * ... this.solution.createRandom(boolean hasRepeats, int length, Random rand) ... -- ILoColor
-   * 
-   * ... this.currentGuess.length() ... -- int
-   * ... this.currentGuess.sameColorHelper(Color color, ILoColor that) ... -- int
-   * ... this.currentGuess.exactColorInList(ILoColor that) ... -- int
-   * ... this.currentGuess.remove(Color color) ... -- int
-   * ... this.currentGuess.removeAll(Color color) ... -- ILoColor
-   * ... this.currentGuess.inexactColorInList(ILoColor that) ... -- int 
-   * ... this.currentGuess.hasColor(Color color) ... boolean
-   * ... this.currentGuess.inexactFinal(ILoColor that) ... -- int
-   * ... this.currentGuess.getColor(int num) ... -- Color
-   * ... this.currentGuess.removeFirst() ... -- ILoColor 
-   * ... this.currentGuess.drawCircles(WorldImage bkg) ... -- WorldImage
-   * ... this.currentGuess.drawTotalComparison(ILoColor that, WorldImage bkg) ... -- WorldImage
-   * ... this.currentGuess.createRandom(boolean hasRepeats, int length, Random rand) ... -- ILoColor
-   * 
-   * ... this.pastGuesses.lengthOfOuterList() ... -- int
-   * ... this.pastGuesses.drawILoLoColor(WorldImage bkg) ... -- WorldImage
-   * ... this.pastGuesses.drawAllComparisons(ILoColor that, WorldImage bkg) ... -- WorldImage
-   */
-  
-  // constructor that is required by the game itself
-  MasterMindGame(boolean hasDuplicates, int solutionLength, int guesses, ILoColor posColors) {
-    this(hasDuplicates, solutionLength, guesses, posColors, new Random());
-  }
-
-  // constructor that can be utilized to create seeded random games
-  MasterMindGame(boolean hasDuplicates, int solutionLength, int guesses, ILoColor posColors,
-      Random rand) {
-    this(hasDuplicates, solutionLength, guesses, posColors,
-        posColors.createRandom(hasDuplicates, solutionLength, rand), new MtLoColor(),
-        new MtLoLoColor());
-  }
-
-  // topleft = (0, 0)
-  // makes the scene for the game with the game image and background image
-  public WorldScene makeScene() {
-    int width = (Math.max(this.solutionLength, this.posColors.length()) + 2) * 50;
-    int height = (this.guesses + 2) * 50;
-    WorldImage colorBackground = new RectangleImage(width, height, OutlineMode.SOLID, Color.gray);
-
-    return new WorldScene(width, height).placeImageXY(new OverlayOffsetAlign(AlignModeX.LEFT,
-        AlignModeY.MIDDLE, this.makeBkg(), 0, 0, colorBackground), width / 2, height / 2);
-  }
-
-  // draws the background with all the game circles on it
-  public WorldImage makeBkg() {
-    WorldImage mtCircles = this.makeEmptyCircles();
-    WorldImage posCircles = this.drawPosColors(); // used just to be clear
-    WorldImage blackRect = this.makeBlackRect();
-    WorldImage prevGuess = new BesideImage(this.pastGuesses.drawILoLoColor(new EmptyImage()),
-        this.pastGuesses.drawAllComparisons(this.solution, new EmptyImage()));
-    WorldImage currGuess = this.currentGuess.drawCircles(new EmptyImage());
-    WorldImage totalGuess = new OverlayOffsetAlign(AlignModeX.LEFT, AlignModeY.BOTTOM,
-        new AboveAlignImage(AlignModeX.LEFT, currGuess, prevGuess), 0, 0, mtCircles);
-    return new AboveAlignImage(AlignModeX.LEFT, blackRect, totalGuess, posCircles);
-  }
-
-  // creates the black rectangle at the top of the screen
-  public WorldImage makeBlackRect() {
-    return new RectangleImage(50 * this.solutionLength, 50, OutlineMode.SOLID, Color.black);
-  }
-
-  // draws the row of circles that represents the possible colors
-  public WorldImage drawPosColors() {
-    return this.posColors.drawCircles(new EmptyImage());
-  }
-
-  // draws the empty circles for the guesses that have not been made yet
-  public WorldImage makeEmptyCircles() {
-    return this.drawEmptyRows(this.guesses, new EmptyImage());
-  }
-
-  // Helper function for makeEmptyCircles that recursively calls itself
-  public WorldImage drawEmptyRows(int rows, WorldImage bkg) { 
-    
-    /* TEMPLATE:
-     * Parameters :
-     * ... rows ... int
-     * ... bkg ... WorldImage
-     */
-    
-    if (rows == 0) {
-      return bkg;
-    }
-    else {
-      return this.drawEmptyRows(rows - 1, new AboveAlignImage(AlignModeX.LEFT,
-          this.drawOneRow(this.solutionLength, new EmptyImage()), bkg));
-    }
-  }
-
-  // Helper function for draw EmptyRows that draws a single row of empty circles
-  public WorldImage drawOneRow(int remainingInRow, WorldImage bkg) {
-    
-    /* TEMPLATE:
-     * Parameters :
-     * ... remainingInRow ... int
-     * ... bkg ... WorldImage
-     */
-    
-    if (remainingInRow == 0) {
-      return bkg;
-    }
-    else {
-      return this.drawOneRow(remainingInRow - 1,
-          new BesideImage(bkg,
-              new OverlayImage(new CircleImage(20, OutlineMode.OUTLINE, Color.black),
-                  new RectangleImage(50, 50, OutlineMode.OUTLINE, Color.gray))));
-    }
-  }
-
-  // creates the last scene shown when the game ends.
-  public WorldScene lastScene(String msg) {
-    
-    /* TEMPLATE:
-     * Parameters :
-     * ... msg ... int
-     */
-
-    MasterMindGame finalWorld = new MasterMindGame(this.hasDuplicates, this.solutionLength,
-        this.guesses, this.posColors, this.solution, new MtLoColor(),
-        new ConsLoLoColor(this.currentGuess, this.pastGuesses));
-    int width = (Math.max(this.solutionLength, this.posColors.length()) + 2) * 50;
-    int coverCardWidth = this.solutionLength * 50;
-    WorldImage coverCard = new RectangleImage(coverCardWidth, 50, OutlineMode.SOLID, Color.gray);
-    WorldImage solutionCard = new OverlayImage(
-        this.solution.drawCircles(new EmptyImage()).movePinholeTo(new Posn(0, 0)), coverCard);
-    WorldImage textBox = new RectangleImage(width - coverCardWidth, 50, OutlineMode.SOLID,
-        Color.gray);
-    WorldImage text = new OverlayImage(new TextImage(msg, 30, Color.black), textBox);
-    return finalWorld.makeScene().placeImageXY(new BesideImage(solutionCard, text), width / 2, 25);
-  }
-
-  // handles all of the key events that are relevant to the game (ie numbers,
-  // backspace, and enter)
-  public World onKeyEvent(String key) {
-    
-    /* TEMPLATE:
-     * Parameters :
-     * ... key ... int
-     */
-    
-    if ("123456789".substring(0, this.posColors.length()).contains(key)) {
-      if (this.currentGuess.length() == this.solutionLength) {
-        return this;
+  // Kruskal's Algorithm utilized for constructing the maze
+  ArrayList<Edge> algorithm() {
+    HashUtils<Node> util = new HashUtils<Node>();
+    ArrayList<Edge> resultEdges = new ArrayList<Edge>();
+    // we know algo is done when edges in tree equals the number of nodes - 1;
+    while (resultEdges.size() != this.representatives.size() - 1) {
+      Edge e = this.worklist.get(0);
+      // checks to see if this edge creates a loop
+      if (util.find(this.representatives, e.from).equals(util.find(this.representatives, e.to))) {
+        this.leftOver.add(this.worklist.remove(0));
       }
       else {
-        return new MasterMindGame(this.hasDuplicates, this.solutionLength, this.guesses,
-            this.posColors, this.solution,
-            new ConsLoColor(this.posColors.getColor(Integer.valueOf(key)), this.currentGuess),
-            this.pastGuesses);
+        resultEdges.add(e);
+        util.union(this.representatives, util.find(this.representatives, e.from),
+            util.find(this.representatives, e.to));
+        this.worklist.remove(0);
       }
     }
-    else if (key.equals("backspace")) {
-      return new MasterMindGame(this.hasDuplicates, this.solutionLength, this.guesses,
-          this.posColors, this.solution, this.currentGuess.removeFirst(), this.pastGuesses);
+    this.leftOver.addAll(this.worklist);
+    return resultEdges;
+  }
+
+  // removes all of this.leftover from its connected parts
+  void removeAllLeftOver() {
+    for (Edge e : this.leftOver) {
+      e.removeThisEdge();
     }
-    else if (key.equals("enter")) {
-      if (this.currentGuess.length() == this.solutionLength) {
-        if (this.currentGuess.exactColorInList(this.solution) == this.solutionLength) {
-          return this.endOfWorld("Win!"); // what to return?
+  }
+}
+
+//this class is generalized even though it is only used in one specific case
+//utilities for Hashmaps for Nodes
+class HashUtils<T> {
+  // returns the highest representative of the given node
+  T find(HashMap<T, T> reps, T node) {
+    // if this node equals the given node, return it
+    if (node.equals(reps.get(node))) {
+      return node;
+    }
+    else {
+      // if not, use the same hashmap and the node that this node points to
+      return this.find(reps, reps.get(node));
+    }
+  }
+
+  // sets rep1's representative to rep2
+  void union(HashMap<T, T> reps, T rep1, T rep2) {
+    reps.replace(rep1, rep2);
+  }
+
+}
+
+//class that represents the Maze
+
+class MazeGame extends World {
+  ArrayList<ArrayList<Node>> mazeBoard;
+  // one value that controls the size of the board
+  int squareSize;
+
+  // these fields are only used for gametype 1
+  int curX;
+  int curY;
+
+  // this field is used for all gametypes
+  ArrayList<Node> nodesVisited;
+  // input should be 1: manual, 2: DFS, 3: BFS
+  int gameType;
+
+  // these fields are only used for gametypes 2 and 3
+  ICollection<Node> worklistSearch;
+  HashMap<Node, Edge> cameFromEdge;
+
+  // for BFS, you can toggle multisearch, which clears all node in the worklist
+  // in one tick, rather than just one node
+  boolean multiSearch;
+
+  // INPUTS
+  // x and y represent the height and width of the maze to be created
+  // sqSize represents the size of each node that is drawn, to be adjusted so that
+  // the board fits on screen
+  // rand is a random value generator used to determine the weight of the edges on
+  // the board
+  // gameType represents how the maze will be solved (1 for manual, 2 for DFS, 3
+  // for BFS)
+  // any other entries will throw an exception
+  // finally, multiSearch is a boolean flag to toggle on or off evaluating all the
+  // elements in the
+  // worklist, only does anything for BFS search
+
+  public MazeGame(int x, int y, int sqSize, Random rand, int gameType, boolean multiSearch) {
+    this.mazeBoard = this.makeConnectedBoard(x, y, rand);
+    this.squareSize = sqSize;
+    this.curX = 0;
+    this.curY = 0;
+    this.nodesVisited = new ArrayList<Node>();
+    if (gameType < 1 || gameType > 3) {
+      throw new RuntimeException("Invalid game type");
+    }
+    else {
+      this.gameType = gameType;
+    }
+    if (this.gameType == 2) {
+      this.worklistSearch = new Stack<Node>();
+      this.worklistSearch.add(this.mazeBoard.get(0).get(0));
+    }
+    else if (this.gameType == 3) {
+      this.worklistSearch = new Queue<Node>();
+      this.worklistSearch.add(this.mazeBoard.get(0).get(0));
+    }
+    this.cameFromEdge = new HashMap<Node, Edge>();
+
+    this.multiSearch = multiSearch;
+  }
+
+  public MazeGame(int x, int y, int sqSize, int gameType, boolean multiSearch) {
+    this(x, y, sqSize, new Random(), gameType, multiSearch);
+  }
+
+  // creates the board with x length and y height
+  // where each cell is connected to each neighboring cell through an
+  // edge with a random length anywhere from 0 to 99
+  // also creates a Hashmap for the Nodes to be used Kruskal's algo
+  // Then, it takes out all of the edges that are not a part of Kruskal's
+  // connections
+  public ArrayList<ArrayList<Node>> makeConnectedBoard(int x, int y, Random rand) {
+    // hashmap that represents what each node's representative is
+    HashMap<Node, Node> boardHash = new HashMap<Node, Node>();
+    // all of the edges in the board
+    ArrayList<Edge> allEdges = new ArrayList<Edge>();
+    ArrayList<ArrayList<Node>> resultBoard = new ArrayList<ArrayList<Node>>();
+    for (int i = 0; i < y; i += 1) {
+      ArrayList<Node> rowI = new ArrayList<Node>();
+      for (int j = 0; j < x; j += 1) {
+        Node temp = new Node();
+
+        if (i == 0 && j == 0) {
+          temp.color = Color.red;
         }
-        else if (this.guesses - 1 == this.pastGuesses.lengthOfOuterList()) {
-          return this.endOfWorld("Lose!"); // what to return?
+        else if (i == y - 1 && j == x - 1) {
+          temp.color = Color.magenta;
+        }
+        rowI.add(temp);
+        // ensures that this node is added to the hashmap and maps to itself
+        boardHash.put(temp, temp);
+        // kruskalEdges starts with all of the edges in the list
+        if (i > 0) {
+          allEdges.add(temp.connect(resultBoard.get(i - 1).get(j), rand.nextInt(100)));
+        }
+        if (j > 0) {
+          allEdges.add(temp.connect(rowI.get(j - 1), rand.nextInt(100)));
+        }
+      }
+      resultBoard.add(rowI);
+    }
+
+    this.sortEdges(allEdges);
+    KruskalMaze kru = new KruskalMaze(boardHash, allEdges);
+    // creates a path through all of the cells, also filling the leftover field with
+    // all the unused connections between the neighbor nodes
+    kru.algorithm();
+    // removes all of the leftoverpaths that are not used in kruskal's algo
+    kru.removeAllLeftOver();
+
+    return resultBoard;
+  }
+
+  // sorts the edges to be put into kruskal's algorithm
+  public void sortEdges(ArrayList<Edge> input) {
+    input.sort(new CompareByWeight());
+  }
+
+  // makes all the cells in this board grey, except the first and last
+  public void grayBoard() {
+    for (ArrayList<Node> arrNode : this.mazeBoard) {
+      for (Node n : arrNode) {
+        n.color = Color.gray;
+      }
+    }
+    this.mazeBoard.get(0).get(0).color = Color.red;
+    this.mazeBoard.get(this.mazeBoard.size() - 1)
+        .get(this.mazeBoard.get(0).size() - 1).color = Color.magenta;
+  }
+
+  // CONTROLS
+  // if in gametype 1, the user can use arrow keys to solve the maze by themselves
+  // the user can switch between manual solving the current board, DFS, or BFS
+  // OTHER CONTROLS
+  // "r" = creates a new board of the same size
+  // (we didnt creating other board sizes in game because it would not fit in the
+  // custom window size)
+  // "1" = resets the current maze, allowing the user to manually solve it
+  // "2" = resets the current maze, beginning to solve it with Depth First Search
+  // "3" = resets the current maze, beginning to solve it with Breadth First
+  // Search
+  // "w" = changes the boolean flag for multiSearch, only works when doing Breadth
+  // First Search (gameType 3)
+  public void onKeyEvent(String key) {
+    if (key.equals("r")) {
+      this.mazeBoard = this.makeConnectedBoard(this.mazeBoard.get(0).size(), this.mazeBoard.size(),
+          new Random());
+      this.curX = 0;
+      this.curY = 0;
+      this.nodesVisited = new ArrayList<Node>();
+      if (this.gameType == 2) {
+        this.worklistSearch = new Stack<Node>();
+        this.worklistSearch.add(this.mazeBoard.get(0).get(0));
+      }
+      else if (this.gameType == 3) {
+        this.worklistSearch = new Queue<Node>();
+        this.worklistSearch.add(this.mazeBoard.get(0).get(0));
+      }
+      this.cameFromEdge = new HashMap<Node, Edge>();
+    }
+    else if (key.equals("1") && this.gameType != 1) {
+      this.gameType = 1;
+      this.nodesVisited = new ArrayList<Node>();
+      this.grayBoard();
+    }
+    else if (key.equals("2") && this.gameType != 2) {
+      this.gameType = 2;
+      this.nodesVisited = new ArrayList<Node>();
+      this.worklistSearch = new Stack<Node>();
+      this.worklistSearch.add(this.mazeBoard.get(0).get(0));
+      this.grayBoard();
+    }
+    else if (key.equals("3") && this.gameType != 3) {
+      this.gameType = 3;
+      this.nodesVisited = new ArrayList<Node>();
+      this.worklistSearch = new Queue<Node>();
+      this.worklistSearch.add(this.mazeBoard.get(0).get(0));
+      this.grayBoard();
+    }
+    else if (key.equals("w") && this.gameType == 3) {
+      this.multiSearch = !this.multiSearch;
+    }
+
+    if (this.gameType == 1) {
+      Node currNode = this.mazeBoard.get(this.curY).get(this.curX);
+      Node nextNode;
+      if (key.equals("down") && this.curY < this.mazeBoard.size()) {
+        nextNode = this.mazeBoard.get(this.curY + 1).get(this.curX);
+        if (currNode.isConnected(this.mazeBoard.get(this.curY + 1).get(this.curX))) {
+          if (nextNode.color.equals(Color.white)) {
+            this.nodesVisited.remove(nextNode);
+          }
+          else {
+            this.nodesVisited.add(currNode);
+          }
+          currNode.color = Color.white;
+          this.curY += 1;
+          this.mazeBoard.get(curY).get(curX).color = Color.red;
+        }
+      }
+      if (key.equals("up") && this.curY > 0) {
+        nextNode = this.mazeBoard.get(this.curY - 1).get(this.curX);
+        if (currNode.isConnected(nextNode)) {
+          if (nextNode.color.equals(Color.white)) {
+            this.nodesVisited.remove(nextNode);
+          }
+          else {
+            this.nodesVisited.add(currNode);
+          }
+          currNode.color = Color.white;
+          this.curY -= 1;
+          this.mazeBoard.get(curY).get(curX).color = Color.red;
+        }
+      }
+      if (key.equals("left") && this.curX > 0) {
+        nextNode = this.mazeBoard.get(this.curY).get(this.curX - 1);
+        if (currNode.isConnected(this.mazeBoard.get(this.curY).get(this.curX - 1))) {
+          if (nextNode.color.equals(Color.white)) {
+            this.nodesVisited.remove(nextNode);
+          }
+          else {
+            this.nodesVisited.add(currNode);
+          }
+          currNode.color = Color.white;
+          this.curX -= 1;
+          this.mazeBoard.get(curY).get(curX).color = Color.red;
+        }
+      }
+      if (key.equals("right") && this.curX < this.mazeBoard.get(0).size()) {
+        nextNode = this.mazeBoard.get(this.curY).get(this.curX + 1);
+        if (currNode.isConnected(this.mazeBoard.get(this.curY).get(this.curX + 1))) {
+          if (nextNode.color.equals(Color.white)) {
+            this.nodesVisited.remove(nextNode);
+          }
+          else {
+            this.nodesVisited.add(currNode);
+          }
+          currNode.color = Color.white;
+          this.curX += 1;
+          this.mazeBoard.get(curY).get(curX).color = Color.red;
+        }
+      }
+      if (this.curX == this.mazeBoard.get(0).size() - 1 && this.curY == this.mazeBoard.size() - 1) {
+        this.endOfWorld("You win!");
+      }
+    }
+  }
+
+  public WorldScene lastScene(String msg) {
+    for (Node n : this.nodesVisited) {
+      n.color = Color.green;
+    }
+    WorldScene bkg = this.makeScene();
+    bkg.placeImageXY(new TextImage("You Win!", Color.blue), this.getMazeHeight() / 2,
+        this.getMazeWidth() / 2);
+    return bkg;
+  }
+
+  // draws the maze
+  public WorldImage drawMaze() {
+    WorldImage bkg = new EmptyImage();
+    for (int i = 0; i < this.mazeBoard.size(); i += 1) {
+      WorldImage row = new EmptyImage();
+      for (int j = 0; j < this.mazeBoard.get(i).size(); j += 1) {
+        WorldImage cell = new RectangleImage(this.squareSize, this.squareSize, OutlineMode.SOLID,
+            this.mazeBoard.get(i).get(j).color);
+
+        // if the cell to the left is not connected, create a cell with a wall to the
+        // left
+        if (j > 0 && !this.mazeBoard.get(i).get(j).isConnected(this.mazeBoard.get(i).get(j - 1))) {
+          cell = new OverlayOffsetAlign(AlignModeX.LEFT, AlignModeY.MIDDLE,
+              new RectangleImage(2, this.squareSize, OutlineMode.SOLID, Color.black), 0, 0, cell);
+        }
+        // if the cell above this cell is not connected, create a cell with a wall above
+        if (i > 0 && !this.mazeBoard.get(i).get(j).isConnected(this.mazeBoard.get(i - 1).get(j))) {
+          cell = new OverlayOffsetAlign(AlignModeX.CENTER, AlignModeY.TOP,
+              new RectangleImage(this.squareSize, 2, OutlineMode.SOLID, Color.black), 0, 0, cell);
+        }
+        row = new BesideImage(row, cell);
+      }
+      bkg = new AboveImage(bkg, row);
+    }
+    // return new OverlayImage(bkg, new
+    // RectangleImage(this.mazeBoard.get(0).size()*this.squareSize+ 5,
+    // this.mazeBoard.size() * this.squareSize + 5, OutlineMode.SOLID,
+    // Color.black));
+    return bkg;
+  }
+
+  // makes the scene
+  public WorldScene makeScene() {
+    WorldScene bkg = this.getEmptyScene();
+    bkg.placeImageXY(this.drawMaze(), this.getMazeWidth() / 2, this.getMazeHeight() / 2);
+    return bkg;
+  }
+
+  // returns the width of the screen for the current maze game
+  public int getMazeWidth() {
+    return this.mazeBoard.get(0).size() * this.squareSize;
+  }
+
+  // returns the height of the screen for the current maze game
+  public int getMazeHeight() {
+    return this.mazeBoard.size() * this.squareSize;
+  }
+
+  void searchHelp() {
+    Node next = this.worklistSearch.remove();
+    next.color = Color.white;
+    if (next.equals(
+        this.mazeBoard.get(this.mazeBoard.size() - 1).get(this.mazeBoard.get(0).size() - 1))) {
+      this.reconstruct(next); // Success!
+    }
+    else {
+      // add all the neighbors of next to the worklist for further processing
+      for (Edge e : next.outedges) {
+        Node other = e.otherNode(next);
+        if (other.color.equals(Color.white)) {
+          //this if statement is necessary because 
+          //if the other color is white, we do not want to add
+          //it to the worklistSearch ICollection or add it again
+          //to cameFromEdge because it already exists there
         }
         else {
-          return new MasterMindGame(this.hasDuplicates, this.solutionLength, this.guesses,
-              this.posColors, this.solution, new MtLoColor(),
-              new ConsLoLoColor(this.currentGuess, this.pastGuesses));
+          this.worklistSearch.add(other);
+          e.otherNode(next).color = Color.red;
+          this.cameFromEdge.put(other, e);
         }
       }
+    }
+  }
+
+  // searchHelp used for BFS to make each tick evaluate the whole worklist
+  void multiSearchHelp() {
+    ICollection<Node> temp = new Queue<Node>();
+    while (!this.worklistSearch.isEmpty()) {
+      Node next = this.worklistSearch.remove();
+      next.color = Color.white;
+      if (next.equals(
+          this.mazeBoard.get(this.mazeBoard.size() - 1).get(this.mazeBoard.get(0).size() - 1))) {
+        this.reconstruct(next); // Success!
+      }
       else {
-        return this;
+        // add all the neighbors of next to the worklist for further processing
+        for (Edge e : next.outedges) {
+          Node other = e.otherNode(next);
+          if (other.color.equals(Color.white)) {
+            //this if statement is necessary because 
+            //if the other color is white, we do not want to add
+            //it to the worklistSearch ICollection or add it again
+            //to cameFromEdge because it already exists there
+          }
+          else {
+            temp.add(other);
+            e.otherNode(next).color = Color.red;
+            this.cameFromEdge.put(other, e);
+          }
+        }
       }
     }
-    else {
-      return this;
+    this.worklistSearch = temp;
+  }
+
+  // reconstructs the path taken to get to the end
+  void reconstruct(Node end) {
+    this.nodesVisited.add(end);
+    if (end.equals(this.mazeBoard.get(0).get(0))) {
+      this.endOfWorld("You Win!");
     }
+    else {
+      this.reconstruct(this.cameFromEdge.get(end).otherNode(end));
+    }
+  }
+
+  public void onTick() {
+    if (this.gameType == 1) {
+      return;
+    }
+    else if (this.gameType == 3 && this.multiSearch) {
+      this.multiSearchHelp();
+    }
+    else {
+      this.searchHelp();
+    }
+  }
+}
+
+class CompareByWeight implements Comparator<Edge> {
+
+  @Override
+  public int compare(Edge o1, Edge o2) {
+    return o1.weight - o2.weight;
+  }
+}
+
+//Represents a mutable collection of items
+interface ICollection<T> {
+  // Is this collection empty?
+  boolean isEmpty();
+
+  // EFFECT: adds the item to the collection
+  void add(T item);
+
+  // Returns the first item of the collection
+  // EFFECT: removes that first item
+  T remove();
+  
+  //returns the size of the ICollection
+  int size();
+}
+
+class Queue<T> implements ICollection<T> {
+  Deque<T> contents;
+
+  Queue() {
+    this.contents = new Deque<T>();
+  }
+
+  public boolean isEmpty() {
+    return this.contents.isEmpty();
+  }
+
+  public T remove() {
+    return this.contents.removeFromHead();
+  }
+
+  public void add(T item) {
+    this.contents.addAtTail(item); // NOTE: Different from Stack!
+  }
+  
+  public int size() {
+    return this.contents.size();
+  }
+}
+
+class Stack<T> implements ICollection<T> {
+  Deque<T> contents;
+
+  Stack() {
+    this.contents = new Deque<T>();
+  }
+
+  public boolean isEmpty() {
+    return this.contents.isEmpty();
+  }
+
+  public T remove() {
+    return this.contents.removeFromHead();
+  }
+
+  public void add(T item) {
+    this.contents.addAtHead(item);
+  }
+  
+  public int size() {
+    return this.contents.size();
+  }
+}
+
+//represents a Deque with a header that consists of the Sentinel node
+class Deque<T> {
+  Sentinel<T> header;
+
+  // first constructor that takes in no arguments
+  Deque() {
+    this.header = new Sentinel<T>();
+  }
+
+  // checks if the Deque is empty
+  public boolean isEmpty() {
+    // TODO Auto-generated method stub
+    return this.size() == 0;
+  }
+
+  //counts the number of nodes in a list Deque, not including the header node
+  int size() {
+    return this.header.next.sizeHelp();
+  }
+
+  // second constructor that takes in the header as an argument
+  Deque(Sentinel<T> header) {
+    this.header = header;
+  }
+
+  // consumes a value of type T and inserts it at the front of the list
+  void addAtHead(T t) {
+    this.header.add(t);
+  }
+
+  // consumes a value of type T and inserts it at the tail of this list
+  void addAtTail(T t) {
+    this.header.prev.add(t);
+  }
+
+  // removes the first node from this Deque.
+  T removeFromHead() {
+    return this.header.next.removeSelf();
+  }
+}
+
+//an abstract class that can either be a sentinel or a node
+abstract class ANode<T> {
+  ANode<T> next;
+  ANode<T> prev;
+
+  // update the next field of this object to be the given object
+  void updateNext(ANode<T> that) {
+    this.next = that;
+  }
+
+  // update the previous field of given object to be this object
+  void updatePrev(ANode<T> that) {
+    this.prev = that;
+  }
+
+  // counts the number of nodes in an ANode, not including the header node
+  abstract int sizeHelp();
+
+  // create a new node with all the right links with the given T data in the node
+  abstract DequeNode<T> add(T t);
+
+  // removes this node from the Deque
+  abstract T removeSelf();
+
+}
+
+//represents a sentinel that stores no data in it
+class Sentinel<T> extends ANode<T> {
+  Sentinel() {
+    this.next = this;
+    this.prev = this;
+  }
+
+  // create a new node with the given T data as the next of this ANode
+  public DequeNode<T> add(T t) {
+    return new DequeNode<T>(t, this.next, this);
+  }
+
+  //returns the number of nodes in a sentinel, which is none
+  public int sizeHelp() {
+    return 0;
+  }
+
+  //removes this node from the Deque
+  public T removeSelf() {
+    throw new RuntimeException("cannot remove from an empty list");
   }
 
 }
 
-//contains all of the relevant examples and tests for ILoColor, ILoLoColor, and MasterMindGame
-class ExamplesGame {
+//represents a node that has a data, prev, and next
+class DequeNode<T> extends ANode<T> {
+  T data;
 
-  Utils util = new Utils();
-
-  ILoColor empty = new MtLoColor();
-  ILoColor cons1 = new ConsLoColor(Color.red, empty);
-  ILoColor cons2 = new ConsLoColor(Color.blue, cons1);
-  ILoColor cons3 = new ConsLoColor(Color.red, cons2);
-  ILoColor cons4 = new ConsLoColor(Color.red,
-      new ConsLoColor(Color.white, new ConsLoColor(Color.green, new MtLoColor())));
-  ILoColor cons9 = new ConsLoColor(Color.red,
-      new ConsLoColor(Color.blue, new ConsLoColor(Color.green, new ConsLoColor(Color.orange,
-          new ConsLoColor(Color.pink, new ConsLoColor(Color.black, new ConsLoColor(Color.cyan,
-              new ConsLoColor(Color.magenta, new ConsLoColor(Color.white, new MtLoColor())))))))));
-
-  ILoColor consLength5 = new ConsLoColor(Color.pink,
-      new ConsLoColor(Color.black, new ConsLoColor(Color.cyan,
-          new ConsLoColor(Color.magenta, new ConsLoColor(Color.white, new MtLoColor())))));
-
-  ILoLoColor emptyLo = new MtLoLoColor();
-  ILoLoColor consCons1 = new ConsLoLoColor(new ConsLoColor(Color.orange, cons1), emptyLo);
-  ILoLoColor consCons2 = new ConsLoLoColor(cons2, consCons1);
-  ILoLoColor consCons3 = new ConsLoLoColor(cons4,
-      new ConsLoLoColor(
-          new ConsLoColor(Color.black,
-              new ConsLoColor(Color.orange, new ConsLoColor(Color.black, empty))),
-          new ConsLoLoColor(new ConsLoColor(Color.black,
-              new ConsLoColor(Color.orange, new ConsLoColor(Color.black, empty))), emptyLo)));
-  ILoLoColor consCons4 = new ConsLoLoColor(cons3, new ConsLoLoColor(cons4, emptyLo));
-
-  MasterMindGame game1 = new MasterMindGame(false, 1, 2,
-      new ConsLoColor(Color.red, new MtLoColor()), new ConsLoColor(Color.red, new MtLoColor()),
-      new MtLoColor(), new MtLoLoColor());
-  MasterMindGame game2 = new MasterMindGame(false, 3, 4,
-      new ConsLoColor(Color.red,
-          new ConsLoColor(Color.white, new ConsLoColor(Color.blue, new MtLoColor()))),
-      new ConsLoColor(Color.white,
-          new ConsLoColor(Color.red, new ConsLoColor(Color.blue, new MtLoColor()))),
-      new ConsLoColor(Color.white,
-          new ConsLoColor(Color.red, new ConsLoColor(Color.blue, new MtLoColor()))),
-      new MtLoLoColor());
-  MasterMindGame game3 = new MasterMindGame(false, 3, 4,
-      new ConsLoColor(Color.red,
-          new ConsLoColor(Color.white, new ConsLoColor(Color.blue, new MtLoColor()))),
-      new ConsLoColor(Color.white,
-          new ConsLoColor(Color.red, new ConsLoColor(Color.blue, new MtLoColor()))),
-      new ConsLoColor(Color.white,
-          new ConsLoColor(Color.red, new ConsLoColor(Color.blue, new MtLoColor()))),
-      new ConsLoLoColor(cons3, new ConsLoLoColor(cons4, new MtLoLoColor())));
-  MasterMindGame game4 = new MasterMindGame(true, 5, 5,
-      new ConsLoColor(Color.green,
-          new ConsLoColor(Color.yellow, new ConsLoColor(Color.orange, new MtLoColor()))),
-      new ConsLoColor(Color.green,
-          new ConsLoColor(Color.yellow,
-              new ConsLoColor(Color.orange,
-                  new ConsLoColor(Color.green, new ConsLoColor(Color.yellow, new MtLoColor()))))),
-      new MtLoColor(), new MtLoLoColor());
-  MasterMindGame game5 = new MasterMindGame(true, 5, 5,
-      new ConsLoColor(Color.green,
-          new ConsLoColor(Color.yellow, new ConsLoColor(Color.orange, new MtLoColor()))),
-      new ConsLoColor(Color.green,
-          new ConsLoColor(Color.yellow,
-              new ConsLoColor(Color.orange,
-                  new ConsLoColor(Color.green, new ConsLoColor(Color.yellow, new MtLoColor()))))),
-      this.consLength5, new MtLoLoColor());
-
-  MasterMindGame seededRandomGameFull = new MasterMindGame(false, 9, 9, cons9, new Random(0));
-  MasterMindGame seededRandomGameRepeats = new MasterMindGame(true, 8, 4,
-      new ConsLoColor(Color.red, new ConsLoColor(Color.black, empty)), new Random(1));
-
-  boolean TestCheckLessThan(Tester t) {
-    return t.checkConstructorException(new IllegalArgumentException("invalid solution length"),
-        "MasterMindGame", true, 0, 1, cons2)
-        && t.checkConstructorException(new IllegalArgumentException("invalid solution length"),
-            "MasterMindGame", true, -100, 1, cons2)
-        && t.checkConstructorException(new IllegalArgumentException("invalid number of guesses"),
-            "MasterMindGame", 1, 0, cons3)
-        && t.checkConstructorException(new IllegalArgumentException("invalid number of guesses"),
-            "MasterMindGame", 1, -10, cons2);
+  DequeNode(T data) {
+    this.data = data;
+    this.next = null;
+    this.prev = null;
   }
 
-  boolean TestCheckEmpty(Tester t) {
-    return t.checkConstructorException(new IllegalArgumentException("0 colors"), "MasterMindGame",
-        true, 3, 3, empty);
+  DequeNode(T data, ANode<T> next, ANode<T> prev) {
+    this.data = data;
+    this.next = next;
+    this.prev = prev;
+    if (next == null || prev == null) {
+      throw new IllegalArgumentException("A given node is null!");
+    }
+    else {
+      prev.updateNext(this);
+      next.updatePrev(this);
+    }
   }
 
-  boolean TestEnoughColors(Tester t) {
-    // throws an exception because cons3 only has 3 colors, while the solution
-    // requires 6 with no repeats
-    return t.checkConstructorException(new IllegalArgumentException("not enough colors"),
-        "MasterMindGame", false, 6, 10, cons3);
-  }
-  
-  // this test is not written in the commented section below because we want to have any
-  // unused imports
-  boolean testMakeBkg(Tester t) { 
-    WorldCanvas c = new WorldCanvas(500,500);
-    WorldScene s = new WorldScene(500,500); 
-    return c.drawScene(s.placeImageXY(this.game2.makeBkg(), 250, 250)) && c.show(); 
-  }
-  
-  /*
-   * 
-   * all of these methods are used to test the drawing methods and work, but they
-   * are commented out so that there arent a bunch of tabs that open up when you
-   * try to run the program boolean testDrawCircles(Tester t) 
-   * 
-   * { WorldCanvas c =
-   * new WorldCanvas(500,500); WorldScene s = new WorldScene(500,500); return
-   * c.drawScene(s.placeImageXY(this.cons3.drawCircles(new EmptyImage()), 250,
-   * 250)) && c.show(); }
-   * 
-   * VISUALIZATION of EmptyCircles boolean testMakeEmptyCircles(Tester t) {
-   * WorldCanvas c = new WorldCanvas(500,500); WorldScene s = new
-   * WorldScene(500,500); return
-   * c.drawScene(s.placeImageXY(this.game2.drawEmptyRows(this.game2.guesses, new
-   * EmptyImage()), 250, 250)) && c.show(); }
-   * 
-   *
-   * boolean testPastGuesses(Tester t) { WorldCanvas c = new WorldCanvas(500,500);
-   * WorldScene s = new WorldScene(500,500); return
-   * c.drawScene(s.placeImageXY(this.game3.pastGuesses.drawILoLoColor(new
-   * EmptyImage()), 250, 250)) && c.show(); }
-   * 
-   * 
-   * boolean testDrawExactMatch(Tester t) { WorldCanvas c = new
-   * WorldCanvas(500,500); WorldScene s = new WorldScene(500,500); return
-   * c.drawScene(s.placeImageXY(this.game3.drawExactMatch(), 250, 250)) &&
-   * c.show(); }
-   * 
-   * boolean testDrawTotalComparison(Tester t) { WorldCanvas c = new
-   * WorldCanvas(500,500); WorldScene s = new WorldScene(500,500); return
-   * c.drawScene(s.placeImageXY(this.cons3.drawTotalComparison(this.cons4, new
-   * EmptyImage()), 250, 250)) && c.show(); }
-   * 
-   * 
-   * boolean testMakeBkg(Tester t) { WorldCanvas c = new WorldCanvas(500,500);
-   * WorldScene s = new WorldScene(500,500); return
-   * c.drawScene(s.placeImageXY(this.game3.makeBkg(), 250, 250)) && c.show(); }
-   * 
-   * boolean testMakeScene(Tester t) { WorldCanvas c = new WorldCanvas(500,500);
-   * WorldScene s = this.game3.makeScene(); return c.drawScene(s) && c.show(); }
-   */
-
-  // runs the game itself
-  boolean testGame(Tester t) {
-    // return game4.bigBang(750,750); //tests the all encompassing constructor
-    // return seededRandomGameFull.bigBang(750, 750); //tests the seeded random
-    // constructor
-    return seededRandomGameRepeats.bigBang(750, 750); // test the seeded random constructor with
-    // repeats
+  // create a new node with all the right links with the given T data in the node
+  public DequeNode<T> add(T t) {
+    return new DequeNode<T>(t, this.next, this);
   }
 
-  // tests that the length method gets the appropriate value that represents the
-  // length of the ILoColor
-  boolean testLength(Tester t) {
-    return t.checkExpect(this.empty.length(), 0) && t.checkExpect(this.cons1.length(), 1)
-        && t.checkExpect(this.cons2.length(), 2);
+  //returns the number of nodes in this deque starting from this node
+  public int sizeHelp() {
+    return 1 + this.next.sizeHelp();
   }
 
-  // tests that sameColorHelper returns 1 if the first value in the list is the
-  // same as the given color
-  boolean testSameColorHelper(Tester t) {
-    return t.checkExpect(this.empty.sameColorHelper(Color.blue, this.cons1), 0)
-        && t.checkExpect(this.cons1.sameColorHelper(Color.blue, this.cons2), 0)
-        && t.checkExpect(this.cons2.sameColorHelper(Color.blue, this.cons2), 1);
+  // removes this node from the Deque
+  public T removeSelf() {
+    this.prev.updateNext(this.next);
+    this.next.updatePrev(this.prev);
+    return this.data;
   }
 
-  // test that exactColorInList returns the number of exact matches in the given
-  // list
-  boolean testExactColorInList(Tester t) {
-    return t.checkExpect(this.empty.exactColorInList(this.cons1), 0)
-        && t.checkExpect(this.cons1.exactColorInList(this.cons2), 0)
-        && t.checkExpect(this.cons2.exactColorInList(this.cons2), 2);
+}
+
+//represents examples for the maze;
+class ExamplesMaze {
+  Node node1;
+  Node node2;
+  Node node3;
+  Node node4;
+  Node node5;
+  Node node6;
+  Node n1;
+  Node n2;
+  Node n3;
+  Node node7;
+  Node node8;
+  Edge edge1;
+  Edge edge2;
+  Edge edge3;
+  Edge edge4;
+  Edge edge5;
+  Edge edge6;
+  Edge edge7;
+  Edge edge8;
+  Edge e1;
+  Edge e2;
+  Edge e3;
+  Edge edge9;
+  ArrayList<Edge> edges1;
+  ArrayList<Edge> edges2;
+  HashMap<Node, Node> reps;
+  HashMap<Node, Node> reps2;
+  ArrayList<Edge> worklist1;
+  ArrayList<Edge> worklist2;
+  KruskalMaze kruskal1;
+  KruskalMaze kruskal2;
+  MazeGame g1;
+  MazeGame g2;
+  MazeGame g3;
+  MazeGame g4;
+  MazeGame g5;
+  Stack<Node> stack1;
+  Queue<Node> queue1;
+
+  Sentinel<String> sentinel1;
+  Sentinel<Integer> sentinel2;
+  Sentinel<String> sentinel3;
+  Deque<String> deque1;
+  ANode<String> abc;
+  ANode<String> bcd;
+  ANode<String> cde;
+  DequeNode<String> def;
+  Deque<String> deque2;
+  ANode<Integer> one;
+  ANode<Integer> two;
+  ANode<Integer> three;
+  ANode<Integer> four;
+  ANode<Integer> five;
+  Deque<Integer> deque3;
+
+  // sets the initial conditions
+  void initConditions() {
+    this.sentinel1 = new Sentinel<String>();
+    this.sentinel2 = new Sentinel<Integer>();
+    this.sentinel3 = new Sentinel<String>();
+    this.deque1 = new Deque<String>();
+    this.abc = new DequeNode<String>("abc", this.sentinel1, this.sentinel1);
+    this.bcd = new DequeNode<String>("bcd", this.sentinel1, abc);
+    this.cde = new DequeNode<String>("cde", this.sentinel1, bcd);
+    this.def = new DequeNode<String>("def", this.sentinel1, cde);
+    this.deque2 = new Deque<String>(this.sentinel1);
+    this.one = new DequeNode<Integer>(1, this.sentinel2, this.sentinel2);
+    this.two = new DequeNode<Integer>(2, this.sentinel2, one);
+    this.three = new DequeNode<Integer>(3, this.sentinel2, two);
+    this.four = new DequeNode<Integer>(4, this.sentinel2, three);
+    this.five = new DequeNode<Integer>(5, this.sentinel2, four);
+    this.deque3 = new Deque<Integer>(this.sentinel2);
+
+    // constructs the same tree/map as the one in lecture notes
+    node1 = new Node();
+    node2 = new Node();
+    node3 = new Node();
+    node4 = new Node();
+    node5 = new Node();
+    node6 = new Node();
+    node7 = new Node();
+    node8 = new Node();
+    n1 = new Node();
+    n2 = new Node();
+    n3 = new Node();
+    edge1 = this.node1.connect(node2, 10);
+    edge2 = this.node2.connect(node3, 20);
+    edge3 = this.node3.connect(node4, 30);
+    edge4 = this.node4.connect(node6, 40);
+    edge5 = this.node2.connect(node6, 50);
+    edge6 = this.node3.connect(node5, 60);
+    edge7 = this.node2.connect(node5, 70);
+    edge8 = this.node1.connect(node5, 80);
+    edge9 = this.node7.connect(node8, 10);
+    e1 = this.n1.connect(n3, 15);
+    e2 = this.n1.connect(n2, 25);
+    e3 = this.n2.connect(n3, 35);
+
+    edges1 = new ArrayList<Edge>(Arrays.asList(this.edge2, this.edge3, this.edge1));
+    edges2 = new ArrayList<Edge>(Arrays.asList(this.edge8, this.edge5, this.edge7, this.edge6));
+
+    g1 = new MazeGame(100, 60, 10, 2, false);
+    g2 = new MazeGame(20, 20, 20, 1, false);
+    g3 = new MazeGame(50, 50, 20, 1, false);
+    g4 = new MazeGame(2, 2, 20, 1, false);
+    g5 = new MazeGame(40, 40, 10, 2, false);
+
+    reps = new HashMap<Node, Node>();
+    reps2 = new HashMap<Node, Node>();
+    // Put all the data into the hashtable
+    reps.put(node1, node1);
+    reps.put(node2, node2);
+    reps.put(node3, node3);
+    reps.put(node4, node4);
+    reps.put(node5, node5);
+    reps.put(node6, node6);
+
+    reps2.put(n1, n1);
+    reps2.put(n2, n2);
+    reps2.put(n3, n3);
+
+    worklist1 = new ArrayList<Edge>(
+        Arrays.asList(edge1, edge2, edge3, edge4, edge5, edge6, edge7, edge8));
+    worklist2 = new ArrayList<Edge>(Arrays.asList(e1, e2, e3));
+    kruskal1 = new KruskalMaze(this.reps, this.worklist1);
+    kruskal2 = new KruskalMaze(this.reps2, this.worklist2);
+    stack1 = new Stack<Node>();
+    queue1 = new Queue<Node>();
   }
 
-  // tests that remove removes the first color in the list that matches the given
-  // color
-  boolean testRemove(Tester t) {
-    return t.checkExpect(this.empty.remove(Color.red), this.empty)
-        && t.checkExpect(this.cons1.remove(Color.red), this.empty)
-        && t.checkExpect(this.cons2.remove(Color.blue), this.cons1);
+  // tests the InitConditions method
+  void testInitConditions(Tester t) {
+    this.initConditions();
+    // Get the data
+    t.checkExpect(reps.get(node1), node1);
+    t.checkExpect(reps.get(node2), node2);
+    // Check that some data is present
+    t.checkExpect(reps.containsKey(node1), true);
+    t.checkExpect(reps.containsKey(node4), true);
+    // Data that isn't present will return null
+    t.checkExpect(reps.get(n1), null);
   }
 
-  // tests that removeAll removes all instances of the given color in this list
-  boolean testRemoveAll(Tester t) {
-    return t.checkExpect(this.empty.removeAll(Color.red), this.empty)
-        && t.checkExpect(this.cons1.removeAll(Color.red), this.empty) && t.checkExpect(
-            this.cons3.removeAll(Color.red), new ConsLoColor(Color.blue, new MtLoColor()));
+  // tests the connect method in the Node class
+  void testConnect(Tester t) {
+    this.initConditions();
+    t.checkExpect(this.node1.outedges.size(), 2);
+    t.checkExpect(this.node2.outedges.size(), 4);
+    t.checkExpect(this.node1.connect(node2, 10), new Edge(node1, node2, 10));
+    t.checkExpect(this.node1.outedges.size(), 3);
+    t.checkExpect(this.node2.outedges.size(), 5);
+    t.checkExpect(this.node1.outedges.get(2), new Edge(node1, node2, 10));
+    t.checkExpect(this.node2.outedges.get(4), new Edge(node1, node2, 10));
   }
 
-  // tests to see that InexactColorInList calculates all of the color matches in
-  // the given list
-  boolean testInexactColorInList(Tester t) {
-    return t.checkExpect(this.empty.inexactColorInList(this.cons1), 0)
-        && t.checkExpect(this.cons1.inexactColorInList(this.cons2), 1)
-        && t.checkExpect(this.cons2.inexactColorInList(this.cons3), 2);
+  // tests the isConnected method in the Node class
+  void testIsConnected(Tester t) {
+    this.initConditions();
+    t.checkExpect(this.node1.isConnected(node6), false);
+    t.checkExpect(this.node7.isConnected(node8), true);
+    t.checkExpect(this.node2.isConnected(node3), true);
+    t.checkExpect(this.n1.isConnected(n2), true);
+
   }
 
-  // tests to see if hasColor checks to see if this list has the given color
-  boolean testHasColor(Tester t) {
-    return t.checkExpect(this.empty.hasColor(Color.blue), false)
-        && t.checkExpect(this.cons1.hasColor(Color.red), true)
-        && t.checkExpect(this.cons2.hasColor(Color.red), true);
+  // tests the remove method in the Node class and ICollection class
+  void testRemove(Tester t) {
+    this.initConditions();
+    t.checkExpect(this.node1.outedges.size(), 2);
+    this.node1.remove(edge8);
+    t.checkExpect(this.node1.outedges.size(), 1);
+    t.checkExpect(this.node2.isConnected(node3), true);
+    t.checkExpect(this.n1.isConnected(n2), true);
+    // tests remove for stack
+    this.stack1.add(this.node1);
+    this.stack1.add(this.node2);
+    Deque<Node> newDeque = new Deque<Node>();
+    newDeque.addAtHead(this.node1);
+    newDeque.addAtHead(this.node2);
+    this.stack1.remove();
+    newDeque.removeFromHead();
+    t.checkExpect(this.stack1.contents, newDeque);
+    this.stack1.remove();
+    t.checkExpect(this.stack1.contents, new Deque<Node>());
+    // tests remove for queue
+    this.queue1.add(this.node3);
+    this.queue1.add(this.node4);
+    Deque<Node> testDeque = new Deque<Node>();
+    testDeque.addAtTail(this.node3);
+    testDeque.addAtTail(this.node4);
+    this.queue1.remove();
+    testDeque.removeFromHead();
+    t.checkExpect(this.queue1.contents, testDeque);
+    this.queue1.remove();
+    t.checkExpect(this.queue1.contents, new Deque<Node>());
   }
 
-  // tests to see if inexactFinal returns the inexact matches, minus the exact
-  // matches
-  boolean testinexactFinal(Tester t) {
-    return t.checkExpect(this.empty.inexactFinal(this.cons1), 0)
-        && t.checkExpect(this.cons1.inexactFinal(this.cons2), 1)
-        && t.checkExpect(this.cons2.inexactFinal(this.cons3), 2)
-        && t.checkExpect(this.cons3.inexactFinal(new ConsLoColor(Color.black,
-            new ConsLoColor(Color.blue, new ConsLoColor(Color.green, this.empty)))), 0);
+  // tests the connectsThisToThat method in the Edge class
+  void testConnectsThisToThat(Tester t) {
+    this.initConditions();
+    t.checkExpect(this.edge1.connectsThisToThat(n2, n2), false);
+    t.checkExpect(this.edge2.connectsThisToThat(node2, node3), true);
+    t.checkExpect(this.edge3.connectsThisToThat(node2, node4), false);
+    t.checkExpect(this.edge4.connectsThisToThat(node4, node6), true);
   }
 
-  // tests to see if the getColor method pulls the colors from the list in the
-  // correct order
-  // Oldest value in the list == 1 (see notes at the top for more explanation)
-  boolean testGetColor(Tester t) {
-    return t.checkException(new IllegalStateException("Number too large for this list: 1"),
-        new MtLoColor(), "getColor", 1) && t.checkExpect(cons1.getColor(1), Color.red)
-        && t.checkExpect(cons2.getColor(2), Color.blue);
+  // tests the removeThisEdge method in the Edge class
+  void testRemoveThisEdge(Tester t) {
+    this.initConditions();
+    t.checkExpect(this.node1.outedges.size(), 2);
+    this.edge1.removeThisEdge();
+    t.checkExpect(this.node1.outedges.size(), 1);
+    this.edge8.removeThisEdge();
   }
 
-  // tests to see if the method removes the first value in a list
-  boolean testRemoveFirst(Tester t) {
-    return t.checkExpect(empty.removeFirst(), empty) && t.checkExpect(cons1.removeFirst(), empty)
-        && t.checkExpect(cons2.removeFirst(), new ConsLoColor(Color.red, new MtLoColor()));
+  // tests the otherNode method in the Edge class
+  void testOtherNode(Tester t) {
+    this.initConditions();
+    t.checkExpect(this.edge1.otherNode(this.node1), this.node2);
+    t.checkExpect(this.edge2.otherNode(this.node2), this.node3);
+    t.checkExpect(this.edge3.otherNode(this.node3), this.node4);
   }
 
-  // tests to see if draw circles draws the circles beside each other in the
-  // correct order
-  boolean testDrawCircles(Tester t) {
-    return t.checkExpect(this.cons2.drawCircles(new EmptyImage()),
-        new BesideImage(
-            new OverlayImage(new CircleImage(22, OutlineMode.SOLID, Color.red),
-                new RectangleImage(50, 50, OutlineMode.OUTLINE, Color.gray)),
-            new BesideImage(
-                new OverlayImage(new CircleImage(22, OutlineMode.SOLID, Color.blue),
-                    new RectangleImage(50, 50, OutlineMode.OUTLINE, Color.gray)),
-                new EmptyImage())));
+  // tests the find method in the HashUtils class
+  void testFind(Tester t) {
+    this.initConditions();
+    t.checkExpect(new HashUtils<Node>().find(reps, node1), node1);
+    this.kruskal1.representatives.replace(node2, node1);
+    t.checkExpect(new HashUtils<Node>().find(reps, node2), node1);
   }
 
-  // tests to see if draw total comparison correctly draws the image
-  boolean testDrawTotalComparison(Tester t) {
-    return t.checkExpect(this.cons2.drawTotalComparison(this.cons2, new EmptyImage()),
-        new BesideImage(
-            new OverlayImage(new TextImage(Integer.toString(2), 30, Color.black),
-                new RectangleImage(50, 50, OutlineMode.OUTLINE, Color.gray)),
-            new OverlayImage(new TextImage(Integer.toString(0), 30, Color.black),
-                new RectangleImage(50, 50, OutlineMode.OUTLINE, Color.gray))))
-        && t.checkExpect(
-            this.cons2.drawTotalComparison(
-                new ConsLoColor(Color.black, new ConsLoColor(Color.blue, this.empty)),
-                new EmptyImage()),
-            new BesideImage(
-                new OverlayImage(new TextImage(Integer.toString(0), 30, Color.black),
-                    new RectangleImage(50, 50, OutlineMode.OUTLINE, Color.gray)),
-                new OverlayImage(new TextImage(Integer.toString(1), 30, Color.black),
-                    new RectangleImage(50, 50, OutlineMode.OUTLINE, Color.gray))))
-        && t.checkExpect(this.cons2.drawTotalComparison(
-            new ConsLoColor(Color.red, new ConsLoColor(Color.blue, this.empty)), new EmptyImage()),
-            new BesideImage(
-                new OverlayImage(new TextImage(Integer.toString(0), 30, Color.black),
-                    new RectangleImage(50, 50, OutlineMode.OUTLINE, Color.gray)),
-                new OverlayImage(new TextImage(Integer.toString(2), 30, Color.black),
-                    new RectangleImage(50, 50, OutlineMode.OUTLINE, Color.gray))));
+  // tests the union method in the HashUtils class
+  void testUnion(Tester t) {
+    this.initConditions();
+    t.checkExpect(this.reps.get(node1), node1);
+    t.checkExpect(this.reps2.get(n1), n1);
+    new HashUtils<Node>().union(reps, node1, node2);
+    new HashUtils<Node>().union(reps2, n1, n3);
+    t.checkExpect(this.reps.get(node1), node2);
+    t.checkExpect(this.reps2.get(n1), n3);
   }
 
-  // tests to see if createRandom works as intended
-  boolean testCreateRandom(Tester t) {
-    Random test1 = new Random(2);
-    Random test2 = new Random(3);
-
-    Color firstColorTest2 = this.cons4.getColor(test2.nextInt(3) + 1);
-    Color secondColorTest2 = this.cons4.remove(firstColorTest2).getColor(test2.nextInt(2) + 1);
-    Color thirdColorTest2 = this.cons4.remove(firstColorTest2).remove(secondColorTest2)
-        .getColor(test2.nextInt(1) + 1);
-
-    return t.checkExpect(this.cons2.createRandom(true, 4, new Random(2)),
-        new ConsLoColor(this.cons2.getColor(test1.nextInt(2) + 1),
-            new ConsLoColor(this.cons2.getColor(test1.nextInt(2) + 1),
-                new ConsLoColor(this.cons2.getColor(test1.nextInt(2) + 1),
-                    new ConsLoColor(this.cons2.getColor(test1.nextInt(2) + 1), empty)))))
-        && t.checkExpect(this.cons4.createRandom(false, 3, new Random(3)),
-            new ConsLoColor(firstColorTest2,
-                new ConsLoColor(secondColorTest2, new ConsLoColor(thirdColorTest2, empty))));
+  // tests the algorithm method in the KruskalMaze class
+  void testAlgo(Tester t) {
+    this.initConditions();
+    t.checkExpect(this.kruskal2.algorithm(), new ArrayList<Edge>(Arrays.asList(e1, e2)));
+    t.checkExpect(this.kruskal1.algorithm(),
+        new ArrayList<Edge>(Arrays.asList(edge1, edge2, edge3, edge4, edge6)));
   }
 
-  // tests to see if lengthOfOuterList returns the length of this OUTSIDE list
-  boolean testLengthOfOuterList(Tester t) {
-    return t.checkExpect(this.consCons3.lengthOfOuterList(), 3)
-        && t.checkExpect(this.consCons1.lengthOfOuterList(), 1)
-        && t.checkExpect(this.emptyLo.lengthOfOuterList(), 0);
+  // tests the removeLeftOver method in the KruskalMaze class
+  void testRemoveLeftOver(Tester t) {
+    this.initConditions();
+    t.checkExpect(this.node2.outedges.get(0), this.edge1);
+    t.checkExpect(this.node2.outedges.get(1), this.edge2);
+    t.checkExpect(this.node2.outedges.get(2), this.edge5);
+    t.checkExpect(this.node2.outedges.get(3), this.edge7);
+    t.checkExpect(this.node6.outedges.size(), 2);
+
+    this.kruskal1.algorithm();
+    this.kruskal1.removeAllLeftOver();
+
+    t.checkExpect(this.node2.outedges.size(), 2);
+    t.checkExpect(this.node2.outedges.get(0), this.edge1);
+    t.checkExpect(this.node2.outedges.get(1), this.edge2);
+    t.checkExpect(this.node6.outedges.size(), 1);
+    t.checkExpect(this.node6.outedges.get(0), this.edge4);
   }
 
-  // tests to see if drawILoLoColor returns a picture representing this ILoLoColor
-  // on the given background
-  boolean testDrawILoLoColor(Tester t) {
-    return t.checkExpect(this.consCons4.drawILoLoColor(new EmptyImage()),
-        new AboveAlignImage(AlignModeX.LEFT,
-            new AboveAlignImage(AlignModeX.LEFT, new EmptyImage(),
-                this.cons3.drawCircles(new EmptyImage())),
-            this.cons4.drawCircles(new EmptyImage())));
+  // tests the compare method in the CompareByWeight class
+  void testCompare(Tester t) {
+    this.initConditions();
+    t.checkExpect(new CompareByWeight().compare(edge1, edge2), -10);
+    t.checkExpect(new CompareByWeight().compare(edge4, edge6), -20);
+    t.checkExpect(new CompareByWeight().compare(e1, e3), -20);
   }
 
-  // tests to see if returns an image of the exact and inexact comparisons of each
-  // list in this
-  // list compared to the given list
-  boolean testDrawAllComparisons(Tester t) {
-    return t.checkExpect(this.consCons4.drawAllComparisons(cons4, new EmptyImage()),
-        new AboveAlignImage(AlignModeX.LEFT,
-            cons3.drawTotalComparison(this.cons4, new EmptyImage()), new AboveAlignImage(
-                AlignModeX.LEFT, cons4.drawTotalComparison(this.cons4, new EmptyImage()))));
+  // tests the sortEdges method in the CompareByWeight class
+  void testSortEdges(Tester t) {
+    this.initConditions();
+    this.g1.sortEdges(edges1);
+    t.checkExpect(this.edges1.get(0), this.edge1);
+    t.checkExpect(this.edges1.get(1), this.edge2);
+    t.checkExpect(this.edges1.get(2), this.edge3);
+    this.g2.sortEdges(edges2);
+    t.checkExpect(this.edges2.get(0), this.edge5);
+    t.checkExpect(this.edges2.get(1), this.edge6);
+    t.checkExpect(this.edges2.get(2), this.edge7);
+    t.checkExpect(this.edges2.get(3), this.edge8);
   }
 
-  // tests to make sure that each On Key Event does exactly what it says it will
-  // do
-  boolean testOnKeyEvent(Tester t) {
-    return t
-        .checkExpect(this.game4.onKeyEvent("1"), new MasterMindGame(true, 5, 5,
-            new ConsLoColor(Color.green,
-                new ConsLoColor(Color.yellow, new ConsLoColor(Color.orange, new MtLoColor()))),
-            new ConsLoColor(Color.green, new ConsLoColor(Color.yellow,
-                new ConsLoColor(Color.orange,
-                    new ConsLoColor(Color.green, new ConsLoColor(Color.yellow, new MtLoColor()))))),
-            new ConsLoColor(Color.orange, this.empty), new MtLoLoColor()))
-        && t.checkExpect(this.game4.onKeyEvent("2"), new MasterMindGame(true, 5, 5,
-            new ConsLoColor(Color.green,
-                new ConsLoColor(Color.yellow, new ConsLoColor(Color.orange, new MtLoColor()))),
-            new ConsLoColor(Color.green, new ConsLoColor(Color.yellow,
-                new ConsLoColor(Color.orange,
-                    new ConsLoColor(Color.green, new ConsLoColor(Color.yellow, new MtLoColor()))))),
-            new ConsLoColor(Color.yellow, this.empty), new MtLoLoColor()))
-        && t.checkExpect(this.game4.onKeyEvent("backspace"), this.game4)
-        && t.checkExpect(this.game4.onKeyEvent("enter"), this.game4)
-        && t.checkExpect(this.game3.onKeyEvent("backspace"),
-            new MasterMindGame(false, 3, 4,
-                new ConsLoColor(Color.red,
-                    new ConsLoColor(Color.white, new ConsLoColor(Color.blue, new MtLoColor()))),
-                new ConsLoColor(Color.white,
-                    new ConsLoColor(Color.red, new ConsLoColor(Color.blue, new MtLoColor()))),
-                new ConsLoColor(Color.red, new ConsLoColor(Color.blue, new MtLoColor())),
-                new ConsLoLoColor(cons3, new ConsLoLoColor(cons4, new MtLoLoColor()))))
-        && t.checkExpect(this.game3.onKeyEvent("1"), this.game3)
-        // this brings the game to the end world state, but leaves the world state
-        // unchanged
-        && t.checkExpect(this.game3.onKeyEvent("enter"), this.game3)
-        && t.checkExpect(this.game5.onKeyEvent("enter"), new MasterMindGame(true, 5, 5,
-            new ConsLoColor(Color.green,
-                new ConsLoColor(Color.yellow, new ConsLoColor(Color.orange, new MtLoColor()))),
-            new ConsLoColor(Color.green, new ConsLoColor(Color.yellow,
-                new ConsLoColor(Color.orange,
-                    new ConsLoColor(Color.green, new ConsLoColor(Color.yellow, new MtLoColor()))))),
-            new MtLoColor(), new ConsLoLoColor(this.consLength5, new MtLoLoColor())));
+  // tests the drawMaze method in the MazeGame class
+  void testDrawMaze(Tester t) {
+    this.initConditions();
+    t.checkExpect(this.g1.mazeBoard.size(), 60);
+    t.checkExpect(this.g1.mazeBoard.get(0).size(), 100);
+
+    WorldImage row2Emp = new EmptyImage();
+    WorldImage bkg = new EmptyImage();
+    WorldImage cell1 = new RectangleImage(20, 20, OutlineMode.SOLID, Color.red);
+    WorldImage cell2 = new RectangleImage(20, 20, OutlineMode.SOLID, Color.gray);
+    WorldImage cell3 = new RectangleImage(20, 20, OutlineMode.SOLID, Color.gray);
+    WorldImage cell4 = new RectangleImage(20, 20, OutlineMode.SOLID, Color.magenta);
+
+    if (!this.g4.mazeBoard.get(0).get(1).isConnected(this.g4.mazeBoard.get(0).get(0))) {
+      cell2 = new OverlayOffsetAlign(AlignModeX.LEFT, AlignModeY.MIDDLE,
+          new RectangleImage(2, 20, OutlineMode.SOLID, Color.black), 0, 0, cell2);
+    }
+    WorldImage row1 = new EmptyImage();
+    row1 = new BesideImage(new BesideImage(row1, cell1), cell2);
+
+    if (!this.g4.mazeBoard.get(1).get(0).isConnected(this.g4.mazeBoard.get(0).get(0))) {
+      cell3 = new OverlayOffsetAlign(AlignModeX.CENTER, AlignModeY.TOP,
+          new RectangleImage(20, 2, OutlineMode.SOLID, Color.black), 0, 0, cell3);
+    }
+    if (!this.g4.mazeBoard.get(1).get(1).isConnected(this.g4.mazeBoard.get(1).get(0))) {
+      cell4 = new OverlayOffsetAlign(AlignModeX.LEFT, AlignModeY.MIDDLE,
+          new RectangleImage(2, 20, OutlineMode.SOLID, Color.black), 0, 0, cell4);
+    }
+    if (!this.g4.mazeBoard.get(1).get(1).isConnected(this.g4.mazeBoard.get(0).get(1))) {
+      cell4 = new OverlayOffsetAlign(AlignModeX.CENTER, AlignModeY.TOP,
+          new RectangleImage(20, 2, OutlineMode.SOLID, Color.black), 0, 0, cell4);
+    }
+
+    WorldImage row2 = new BesideImage(new BesideImage(row2Emp, cell3), cell4);
+    WorldImage world = new AboveImage(new AboveImage(bkg, row1), row2);
+    t.checkExpect(this.g4.drawMaze(), world);
   }
 
-  boolean testLastScene(Tester t) {
-    MasterMindGame finalWorld = new MasterMindGame(false, 3, 4,
-        new ConsLoColor(Color.red,
-            new ConsLoColor(Color.white, new ConsLoColor(Color.blue, new MtLoColor()))),
-        new ConsLoColor(Color.white,
-            new ConsLoColor(Color.red, new ConsLoColor(Color.blue, new MtLoColor()))),
-        new MtLoColor(),
-        new ConsLoLoColor(
-            new ConsLoColor(Color.white,
-                new ConsLoColor(Color.red, new ConsLoColor(Color.blue, new MtLoColor()))),
-            new MtLoLoColor()));
-    int width = 250;
-    int coverCardWidth = 150;
-    WorldImage coverCard = new RectangleImage(coverCardWidth, 50, OutlineMode.SOLID, Color.gray);
-    WorldImage solutionCard = new OverlayImage(new ConsLoColor(Color.white,
-        new ConsLoColor(Color.red, new ConsLoColor(Color.blue, new MtLoColor())))
-            .drawCircles(new EmptyImage()).movePinholeTo(new Posn(0, 0)),
-        coverCard);
-    WorldImage textBox = new RectangleImage(width - coverCardWidth, 
-        50, OutlineMode.SOLID, Color.gray);
-    WorldImage text = new OverlayImage(new TextImage("Win!", 30,Color.black), textBox);
-    return t.checkExpect(this.game2.lastScene("Win!"), finalWorld.makeScene().
-        placeImageXY(new BesideImage(solutionCard, text), width / 2, 25));
+  // tests the MakeConnectedBoard in the MazeGame class
+  void testMakeConnectedBoard(Tester t) {
+    this.initConditions();
+    // needs to test to make sure that each node connects to each other node
+    // the use of g1 is unrelated to the connectedBoard method
+    ArrayList<ArrayList<Node>> test1 = this.g1.makeConnectedBoard(4, 3, new Random(0));
+    t.checkExpect(test1.size(), 3);
+    t.checkExpect(test1.get(0).size(), 4);
+    // testing that the total number of edges is equal to the number of nodes - 1
+    int count1 = 0;
+    for (ArrayList<Node> arrNodes : test1) {
+      for (Node n : arrNodes) {
+        count1 += n.outedges.size();
+      }
+    }
+    // must divide count by two since each edge will be counted twice, once at every
+    // node it connects
+    t.checkExpect(count1 / 2, 11);
+
+    ArrayList<ArrayList<Node>> test2 = this.g1.makeConnectedBoard(100, 60, new Random(0));
+    t.checkExpect(test2.size(), 60);
+    t.checkExpect(test2.get(0).size(), 100);
+    // testing that the total number of edges is equal to the number of nodes - 1
+    int count2 = 0;
+    for (ArrayList<Node> arrNodes : test2) {
+      for (Node n : arrNodes) {
+        count2 += n.outedges.size();
+      }
+    }
+    // must divide count by two since each edge will be counted twice, once at every
+    // node it connects
+    t.checkExpect(count2 / 2, 5999);
   }
+
+  // tests the getMazeWidth method in the MazeGame class
+  void testGetMazeWidth(Tester t) {
+    this.initConditions();
+    t.checkExpect(this.g1.getMazeWidth(), 10 * 100);
+    t.checkExpect(this.g2.getMazeWidth(), 20 * 20);
+    t.checkExpect(this.g3.getMazeWidth(), 50 * 20);
+  }
+
+  // tests the getMazeHeight method in the MazeGame class
+  void testGetMazeHeight(Tester t) {
+    this.initConditions();
+    t.checkExpect(this.g1.getMazeHeight(), 10 * 60);
+    t.checkExpect(this.g2.getMazeHeight(), 20 * 20);
+    t.checkExpect(this.g3.getMazeHeight(), 50 * 20);
+  }
+
+  // tests the onKeyEvent method in the MazeGame class
+  void testOnKeyEvent(Tester t) {
+    this.initConditions();
+    // makes a new game
+    this.g1.onKeyEvent("r");
+    t.checkExpect(this.g1.curX, 0);
+    t.checkExpect(this.g1.curY, 0);
+    t.checkExpect(this.g1.nodesVisited, new ArrayList<Node>());
+    Stack<Node> stack = new Stack<Node>();
+    stack.add(this.g1.mazeBoard.get(0).get(0));
+    t.checkExpect(this.g1.worklistSearch, stack);
+    this.g2.onKeyEvent("1");
+    t.checkExpect(g2.gameType, 1);
+    t.checkExpect(g2.nodesVisited, new ArrayList<Node>());
+    // changes g3's gameType to 3
+    this.g3.onKeyEvent("3");
+    t.checkExpect(g3.gameType, 3);
+    t.checkExpect(g3.nodesVisited, new ArrayList<Node>());
+    Queue<Node> queue = new Queue<Node>();
+    queue.add(this.g3.mazeBoard.get(0).get(0));
+    t.checkExpect(this.g3.worklistSearch, queue);
+    // when going up and down and left and right, nothing should change
+    // since it traversed the first node many times, the first node should
+    // not be added to nodesVisited
+    this.g1.onKeyEvent("down");
+    this.g1.onKeyEvent("up");
+    this.g1.onKeyEvent("right");
+    this.g1.onKeyEvent("left");
+    t.checkExpect(this.g1.curY, 0);
+    t.checkExpect(this.g1.curX, 0);
+    t.checkExpect(this.g1.nodesVisited, new ArrayList<Node>());
+
+  }
+
+  // tests the lastScene method in MazeGame class
+  void testLastScene(Tester t) {
+    this.initConditions();
+    for (Node n : this.g1.nodesVisited) {
+      n.color = Color.green;
+    }
+    WorldScene bkg = this.g1.makeScene();
+    bkg.placeImageXY(new TextImage("You Win!", Color.white), this.g1.getMazeHeight() / 2,
+        this.g1.getMazeWidth() / 2);
+    t.checkExpect(this.g1.lastScene("You Win!"), bkg);
+  }
+
+  // tests the reconstruct method in MazeGame class
+  void testReconstruct(Tester t) {
+    this.initConditions();
+    this.g1.reconstruct(this.g1.mazeBoard.get(0).get(0));
+    t.checkExpect(this.g1.nodesVisited,
+        new ArrayList<Node>(Arrays.asList(this.g1.mazeBoard.get(0).get(0))));
+  }
+
+  // tests the onTick method in the MazeGame class
+  void testOnTick(Tester t) {
+    this.initConditions();
+    this.g2.onTick();
+    // nothing should happen since g2 is gameType 1 (manual)
+    t.checkExpect(this.g2.nodesVisited, new ArrayList<Node>());
+    t.checkExpect(this.g2.gameType, 1);
+    t.checkExpect(this.g2.curX, 0);
+    t.checkExpect(this.g2.curY, 0);
+    this.g1.onTick();
+  }
+
+  // tests the constructor for Node class
+  void testConstructor(Tester t) {
+    t.checkConstructorException(new IllegalArgumentException("A given node is null!"), "DequeNode",
+        "abc", null, new DequeNode<String>("bcd"));
+    t.checkConstructorException(new IllegalArgumentException("A given node is null!"), "DequeNode",
+        "abc", new DequeNode<String>("bcd"), null);
+  }
+
+  // tests the updateNextNode method implemented in ANode<T>
+  void testUpdateNext(Tester t) {
+    this.initConditions();
+    this.abc.updateNext(this.def);
+    t.checkExpect(this.abc.next, this.def);
+    this.sentinel1.updateNext(this.abc);
+    t.checkExpect(this.sentinel1.next, this.abc);
+    this.one.updateNext(this.three);
+    t.checkExpect(this.one.next, this.three);
+  }
+
+  // tests the updatePrevNode method implemented in ANode<T>
+  void testUpdatePrev(Tester t) {
+    this.initConditions();
+    this.bcd.updatePrev(this.def);
+    t.checkExpect(this.bcd.prev, this.def);
+    this.one.updatePrev(this.two);
+    t.checkExpect(this.two.prev, this.one);
+    this.sentinel1.updatePrev(this.abc);
+    t.checkExpect(this.sentinel1.prev, this.abc);
+    t.checkExpect(this.abc.prev, this.sentinel1);
+  }
+
+  // tests the size method implemented in the Deque class
+  void testSize(Tester t) {
+    this.initConditions();
+    t.checkExpect(this.deque1.size(), 0);
+    t.checkExpect(this.deque2.size(), 4);
+    t.checkExpect(this.deque3.size(), 5);
+  }
+
+  // tests the sizeHelp method implemented in the ANode class
+  void testSizeHelp(Tester t) {
+    this.initConditions();
+    t.checkExpect(this.sentinel1.sizeHelp(), 0);
+    t.checkExpect(this.abc.sizeHelp(), 4);
+    t.checkExpect(this.one.sizeHelp(), 5);
+  }
+
+  // tests the addAtHead method in Deque class
+  void testAddAtHead(Tester t) {
+    this.initConditions();
+    this.deque1.addAtHead("hi");
+    t.checkExpect(this.deque1.header.next,
+        new DequeNode<String>("hi", this.sentinel3, this.sentinel3));
+    this.deque2.addAtHead("hello");
+    t.checkExpect(this.deque2.header.next,
+        new DequeNode<String>("hello", this.abc, this.sentinel1));
+    this.deque3.addAtHead(10);
+    t.checkExpect(this.deque3.header.next, new DequeNode<Integer>(10, this.one, this.sentinel2));
+  }
+
+  // tests the add method in the ANode class and ICollection class 
+  void testAdd(Tester t) {
+    this.initConditions();
+    t.checkExpect(this.sentinel3.add("12"),
+        new DequeNode<String>("12", this.sentinel3, this.sentinel3));
+    t.checkExpect(this.abc.add("zzz"), new DequeNode<String>("zzz", this.bcd, this.abc));
+    t.checkExpect(this.one.add(10), new DequeNode<Integer>(10, this.two, this.one));
+    // tests add for stack
+    this.stack1.add(this.node1);
+    this.stack1.add(this.node2);
+    Deque<Node> newDeque = new Deque<Node>();
+    newDeque.addAtHead(this.node1);
+    newDeque.addAtHead(this.node2);
+    t.checkExpect(this.stack1.contents, newDeque);
+    // tests add for queue
+    this.queue1.add(this.node3);
+    this.queue1.add(this.node4);
+    Deque<Node> testDeque = new Deque<Node>();
+    testDeque.addAtTail(this.node3);
+    testDeque.addAtTail(this.node4);
+    t.checkExpect(this.queue1.contents, testDeque);
+  }
+
+  // tests the addAtTail method in Deque class
+  void testAddAtTail(Tester t) {
+    this.initConditions();
+    this.deque1.addAtTail("hi");
+    t.checkExpect(this.deque1.header.prev,
+        new DequeNode<String>("hi", this.sentinel3, this.sentinel3));
+    this.deque2.addAtTail("hello");
+    t.checkExpect(this.deque2.header.prev,
+        new DequeNode<String>("hello", this.sentinel1, this.def));
+    this.deque3.addAtTail(10);
+    t.checkExpect(this.deque3.header.prev, new DequeNode<Integer>(10, this.sentinel2, this.five));
+  }
+
+  // tests the removeSelf method in the ANode class
+  void testRemoveSelf(Tester t) {
+    this.initConditions();
+    t.checkException(new RuntimeException("cannot remove from an empty list"),
+        new Sentinel<String>(), "removeSelf");
+    t.checkException(new RuntimeException("cannot remove from an empty list"),
+        new Sentinel<Double>(), "removeSelf");
+    t.checkExpect(this.bcd.removeSelf(), "bcd");
+    t.checkExpect(this.abc.next, this.cde);
+    t.checkExpect(this.cde.prev, this.abc);
+    t.checkExpect(this.one.removeSelf(), 1);
+    t.checkExpect(this.deque3.header.next, this.two);
+    t.checkExpect(this.two.prev, this.sentinel2);
+  }
+
+  // tests the removeFromHead method in Deque class
+  void testRemoveFromHead(Tester t) {
+    this.initConditions();
+    t.checkExpect(this.deque2.removeFromHead(), "abc");
+    t.checkExpect(this.deque2.header.next, this.bcd);
+    t.checkExpect(this.bcd.prev, this.sentinel1);
+    t.checkExpect(this.deque3.removeFromHead(), 1);
+    t.checkExpect(this.sentinel2.next, this.two);
+    t.checkExpect(this.two.prev, this.sentinel2);
+    t.checkException(new RuntimeException("cannot remove from an empty list"), new Deque<String>(),
+        "removeFromHead");
+    t.checkException(new RuntimeException("cannot remove from an empty list"), new Deque<Double>(),
+        "removeFromHead");
+  }
+
+  // tests the IsEmpty method in ICollection
+  void testIsEmpty(Tester t) {
+    this.initConditions();
+    t.checkExpect(this.deque1.isEmpty(), true);
+    t.checkExpect(this.deque2.isEmpty(), false);
+    t.checkExpect(this.deque3.isEmpty(), false);
+    this.stack1.add(this.node1);
+    Deque<Node> newDeque = new Deque<Node>();
+    newDeque.addAtHead(this.node1);
+    t.checkExpect(this.stack1.isEmpty(), false);
+    t.checkExpect(this.queue1.isEmpty(), true);
+  }
+
+  // tests searchHelp in MazeBoard
+  void testSearchHelp(Tester t) {
+    this.initConditions();
+    //to begin with, the worklist should have the top left node in it
+    t.checkExpect(this.g5.worklistSearch.remove(), this.g5.mazeBoard.get(0).get(0));
+    t.checkExpect(this.g5.cameFromEdge.size(), 0);
+    this.initConditions();
+    this.g5.searchHelp();
+    //should have increased the worklist by as many neighbors as the top left node has
+    //also should have populated the cameFromEdge hashmap equally as much
+    //should have changed the top left node to be white
+    t.checkExpect(this.g5.worklistSearch.size(), this.g5.mazeBoard.get(0).get(0).outedges.size());
+    t.checkExpect(this.g5.cameFromEdge.size(), this.g5.mazeBoard.get(0).get(0).outedges.size());
+    t.checkExpect(this.g5.mazeBoard.get(0).get(0).color, Color.white);
+  }
+
+  // tests multiSearchHelp in MazeBoard
+  void testMultiSearchHelp(Tester t) {
+    this.initConditions();
+    //to begin with, the worklist should have the top left node in it
+    t.checkExpect(this.g5.worklistSearch.remove(), this.g5.mazeBoard.get(0).get(0));
+    t.checkExpect(this.g5.cameFromEdge.size(), 0);
+    this.initConditions();
+    this.g5.searchHelp();
+    //should have increased the worklist by as many neighbors as the top left node has
+    //also should have populated the cameFromEdge hashmap equally as much
+    //should have changed the top left node to be white
+    t.checkExpect(this.g5.worklistSearch.size(), this.g5.mazeBoard.get(0).get(0).outedges.size());
+    t.checkExpect(this.g5.cameFromEdge.size(), this.g5.mazeBoard.get(0).get(0).outedges.size());
+    t.checkExpect(this.g5.mazeBoard.get(0).get(0).color, Color.white);
+  }
+
+  // tests the makeScene method
+  //boolean testScene(Tester t) {
+  //  this.initConditions();
+  //  WorldCanvas c = new WorldCanvas(this.g2.getMazeWidth(), this.g2.getMazeHeight());
+  //  return c.drawScene(this.g2.makeScene()) && c.show();
+  //}
+
+  void testBigBang(Tester t) {
+    this.initConditions();
+    MazeGame current = this.g5;
+    current.bigBang(current.getMazeWidth(), current.getMazeHeight(), .01);
+  }
+
 }
