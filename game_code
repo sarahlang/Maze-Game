@@ -1,0 +1,1359 @@
+import tester.*; // The tester library
+import javalib.worldimages.*; // images, like RectangleImage or OverlayImages
+import javalib.funworld.*; // the abstract World class and the big-bang library
+import javalib.worldcanvas.WorldCanvas; //used in the commented out methods
+import java.awt.Color; // general colors (as triples of red,green,blue values)
+// and predefined colors (Color.RED, Color.GRAY, etc.)
+import java.util.Random;
+
+/*
+ * A FEW NOTES
+ * 
+ * Each list of colors is represented from oldest to newest, rather than newest to oldest.
+ * For example, a list inputed as (cons "yellow" (cons "red"(cons "green"))) is represnted as 
+ * "green circle" "red circle" "yellow circle" on the canvas. This is done because it easily 
+ * aligns with the design of the data structures and accessing them to draw. 
+ */
+
+class Utils {
+  
+  /*
+   * TEMPLATE 
+   * Methods:
+   * 
+   * ... this.checkLessThan(int input, String msg) ... -- int
+   * ... this.checkEmpty(ILoColor colors, String msg) ... -- ILoColor
+   * ... this.checkEnoughColors(boolean hasDuplicates, int length, ILoColor colors, String msg) 
+   * ... -- boolean
+   * 
+   */
+
+  // throws an exception if the input int is less than or equal to 0
+  public int checkLessThan(int input, String msg) {
+    
+    /*
+     * TEMPLATE 
+     * Parameters:
+     * ... input ... -- int
+     * ... msg ... -- String
+     */
+    
+    if (input <= 0) {
+      throw new IllegalArgumentException(msg);
+    }
+    else {
+      return input;
+    }
+  }
+
+  // throws an exception if the length of the given list of colors is 0
+  public ILoColor checkEmpty(ILoColor colors, String msg) {
+    
+    /*
+     * TEMPLATE 
+     * Parameters:
+     * ... colors ... -- ILoColor
+     * ... msg ... -- String
+     * 
+     * Methods on Parameters:
+     * ... colors.length() ... -- int
+     * ... colors.sameColorHelper(Color color, ILoColor that) ... -- int
+     * ... colors.exactColorInList(ILoColor that) ... -- int
+     * ... colors.remove(Color color) ... -- int
+     * ... colors.removeAll(Color color) ... -- ILoColor
+     * ... colors.inexactColorInList(ILoColor that) ... -- int 
+     * ... colors.hasColor(Color color) ... boolean
+     * ... colors.inexactFinal(ILoColor that) ... -- int
+     * ... colors.getColor(int num) ... -- Color
+     * ... colors.removeFirst() ... -- ILoColor 
+     * ... colors.drawCircles(WorldImage bkg) ... -- WorldImage
+     * ... colors.drawTotalComparison(ILoColor that, WorldImage bkg) ... -- WorldImage
+     * ... colors.createRandom(boolean hasRepeats, int length, Random rand) ... -- ILoColor
+     */
+    
+    if (colors.length() == 0) {
+      throw new IllegalArgumentException(msg);
+    }
+    else {
+      return colors;
+    }
+  }
+
+  // checks to see if there are enough colors to fill the length of the solution
+  // list
+  // only relevant if the list does not allow duplicates
+  public boolean checkEnoughColors(boolean hasDuplicates, int length, ILoColor colors, String msg) {
+    
+    /*
+     * TEMPLATE 
+     * Parameters:
+     * ... hasDuplicates ... -- boolean
+     * ... length ... -- int
+     * ... colors ... -- ILoColor
+     * ... msg ... -- String
+     * 
+     * Methods on Parameters:
+     * ... colors.length() ... -- int
+     * ... colors.sameColorHelper(Color color, ILoColor that) ... -- int
+     * ... colors.exactColorInList(ILoColor that) ... -- int
+     * ... colors.remove(Color color) ... -- int
+     * ... colors.removeAll(Color color) ... -- ILoColor
+     * ... colors.inexactColorInList(ILoColor that) ... -- int 
+     * ... colors.hasColor(Color color) ... boolean
+     * ... colors.inexactFinal(ILoColor that) ... -- int
+     * ... colors.getColor(int num) ... -- Color
+     * ... colors.removeFirst() ... -- ILoColor 
+     * ... colors.drawCircles(WorldImage bkg) ... -- WorldImage
+     * ... colors.drawTotalComparison(ILoColor that, WorldImage bkg) ... -- WorldImage
+     * ... colors.createRandom(boolean hasRepeats, int length, Random rand) ... -- ILoColor
+     */
+    
+    if (!hasDuplicates && colors.length() < length) {
+      throw new IllegalArgumentException(msg);
+    }
+    else {
+      return hasDuplicates;
+    }
+  }
+}
+
+//represents a list of Colors
+interface ILoColor {
+
+  // returns the length of this list
+  public int length();
+
+  // returns the number of colors in the same exact position as the given list
+  public int sameColorHelper(Color color, ILoColor that);
+
+  // returns the number of colors in the same exact position as the given list
+  public int exactColorInList(ILoColor that);
+
+  // removes the given color that is the same color as the first circle in this
+  // list
+  public ILoColor remove(Color color);
+
+  // removes the given color that is the same color as the first circle in this
+  // list
+  public ILoColor removeAll(Color color);
+
+  // returns the number of the shared colors in this list with the given list
+  public int inexactColorInList(ILoColor that);
+
+  // checks if the given color exists in this list;
+  public boolean hasColor(Color color);
+
+  // returns the number of shared colors - the number of exact colors
+  public int inexactFinal(ILoColor that);
+
+  // returns the color the corresponds to the given number
+  public Color getColor(int num);
+
+  // removes the first color in this list
+  public ILoColor removeFirst();
+
+  // draws all the colors as circles in this list next to each other
+  public WorldImage drawCircles(WorldImage bkg);
+
+  // draws an image of two numbers, the exact and inexact shared colors of this
+  // list compared to the given list
+  public WorldImage drawTotalComparison(ILoColor that, WorldImage bkg);
+
+  // creates a random ILoColor with the colors that are included in this ILoColor
+  public ILoColor createRandom(boolean hasRepeats, int length, Random rand);
+}
+
+
+// represents the empty list of circles class
+class MtLoColor implements ILoColor {
+
+  /*
+   * TEMPLATE
+   * 
+   * METHODS
+   * 
+   * ... this.length() ... -- int
+   * ... this.sameColorHelper(Color color, ILoColor that) ... -- int
+   * ... this.exactColorInList(ILoColor that) ... -- int
+   * ... this.remove(Color color) ... -- int
+   * ... this.removeAll(Color color) ... -- ILoColor
+   * ... this.inexactColorInList(ILoColor that) ... -- int 
+   * ... this.hasColor(Color color) ... boolean
+   * ... this.inexactFinal(ILoColor that) ... -- int
+   * ... this.getColor(int num) ... -- Color
+   * ... this.removeFirst() ... -- ILoColor 
+   * ... this.drawCircles(WorldImage bkg) ... -- WorldImage
+   * ... this.drawTotalComparison(ILoColor that, WorldImage bkg) ... -- WorldImage
+   * ... this.createRandom(boolean hasRepeats, int length, Random rand) ... -- ILoColor
+   * 
+   */
+  
+  // checks the length of the given list
+  public int length() {
+    return 0;
+  }
+
+  // draws all circles in a row onto the given background
+  public WorldImage drawList(WorldImage image) {
+    return image;
+  }
+
+  // returns the number of colors in the same exact position as the given list
+  public int sameColorHelper(Color color, ILoColor that) {
+    return 0;
+  }
+
+  // returns the number of colors in the same exact position as the given list
+  public int exactColorInList(ILoColor that) {
+    return 0;
+  }
+
+  // returns the empty list
+  public ILoColor remove(Color color) {
+    return this;
+  }
+
+  // returns the empty list
+  public ILoColor removeAll(Color color) {
+    return this;
+  }
+
+  // returns the number of the shared colors in this list with the given list
+  public int inexactColorInList(ILoColor that) {
+    return 0;
+  }
+
+  // checks if the given color exists in this list;
+  public boolean hasColor(Color color) {
+    return false;
+  }
+
+  // returns the number of shared colors - the number of exact colors
+  public int inexactFinal(ILoColor that) {
+    return 0;
+  }
+
+  // returns the color the corresponds to the given number
+  public Color getColor(int num) {
+    throw new IllegalStateException("Number too large for this list: " + Integer.toString(num));
+  }
+
+  // removes the first color in this list
+  public ILoColor removeFirst() {
+    return this;
+  }
+
+  // returns the accumulated bkg
+  public WorldImage drawCircles(WorldImage bkg) {
+    return bkg;
+  }
+
+  // returns the accumulated bkg
+  public WorldImage drawTotalComparison(ILoColor that, WorldImage bkg) {
+    return bkg;
+  }
+
+  // creates a random ILoColor based on the given length, random value, and
+  // whether or not it can
+  // have repeats. Uses this ILoColor as a list of possible colors to include.
+  public ILoColor createRandom(boolean hasRepeats, int length, Random rand) {
+    return this;
+  }
+}
+
+// represents the non-empty list of circles class
+class ConsLoColor implements ILoColor {
+  Color first;
+  ILoColor rest;
+
+  ConsLoColor(Color first, ILoColor rest) {
+    this.first = first;
+    this.rest = rest;
+  }
+  
+  /*
+   * TEMPLATE
+   * 
+   * FIELDS
+   * 
+   * ... this.first ... -- Color
+   * ... this.rest ... -- ILoColor
+   * 
+   * METHODS
+   * 
+   * ... this.length() ... -- int
+   * ... this.sameColorHelper(Color color, ILoColor that) ... -- int
+   * ... this.exactColorInList(ILoColor that) ... -- int
+   * ... this.remove(Color color) ... -- int
+   * ... this.removeAll(Color color) ... -- ILoColor
+   * ... this.inexactColorInList(ILoColor that) ... -- int 
+   * ... this.hasColor(Color color) ... boolean
+   * ... this.inexactFinal(ILoColor that) ... -- int
+   * ... this.getColor(int num) ... -- Color
+   * ... this.removeFirst() ... -- ILoColor 
+   * ... this.drawCircles(WorldImage bkg) ... -- WorldImage
+   * ... this.drawTotalComparison(ILoColor that, WorldImage bkg) ... -- WorldImage
+   * ... this.createRandom(boolean hasRepeats, int length, Random rand) ... -- ILoColor
+   * 
+   * METHODS FOR FIELDS
+   * ... this.rest.length() ... -- int
+   * ... this.rest.sameColorHelper(Color color, ILoColor that) ... -- int
+   * ... this.rest.exactColorInList(ILoColor that) ... -- int
+   * ... this.rest.remove(Color color) ... -- int
+   * ... this.rest.removeAll(Color color) ... -- ILoColor
+   * ... this.rest.inexactColorInList(ILoColor that) ... -- int 
+   * ... this.rest.hasColor(Color color) ... boolean
+   * ... this.rest.inexactFinal(ILoColor that) ... -- int
+   * ... this.rest.getColor(int num) ... -- Color
+   * ... this.rest.removeFirst() ... -- ILoColor 
+   * ... this.rest.drawCircles(WorldImage bkg) ... -- WorldImage
+   * ... this.rest.drawTotalComparison(ILoColor that, WorldImage bkg) ... -- WorldImage
+   * ... this.rest.createRandom(boolean hasRepeats, int length, Random rand) ... -- ILoColor
+   */
+
+  // checks the length of the given list
+  public int length() {
+    return this.rest.length() + 1;
+  }
+
+  // returns the number of colors in the same exact position as the given list
+  public int sameColorHelper(Color color, ILoColor that) {
+    
+    /*
+     * TEMPLATE
+     * 
+     * Parameters:
+     * ... color ... -- Color
+     * ... that ... -- ILoColor
+     * 
+     * Method on Parameter:
+     * ... that.length() ... -- int
+     * ... that.sameColorHelper(Color color, ILoColor that) ... -- int
+     * ... that.exactColorInList(ILoColor that) ... -- int
+     * ... that.remove(Color color) ... -- int
+     * ... that.removeAll(Color color) ... -- ILoColor
+     * ... that.inexactColorInList(ILoColor that) ... -- int 
+     * ... that.hasColor(Color color) ... boolean
+     * ... that.inexactFinal(ILoColor that) ... -- int
+     * ... that.getColor(int num) ... -- Color
+     * ... that.removeFirst() ... -- ILoColor 
+     * ... that.drawCircles(WorldImage bkg) ... -- WorldImage
+     * ... that.drawTotalComparison(ILoColor that, WorldImage bkg) ... -- WorldImage
+     * ... that.createRandom(boolean hasRepeats, int length, Random rand) ... -- ILoColor
+     */
+    
+    if (this.first.equals(color)) {
+      return 1 + this.rest.exactColorInList(that);
+    }
+    else {
+      return this.rest.exactColorInList(that);
+    }
+  }
+
+  // returns the number of colors in the same exact position as the given list
+  public int exactColorInList(ILoColor that) {
+    /*
+     * TEMPLATE
+     * 
+     * Parameters:
+     * ... that ... -- ILoColor
+     * 
+     * Method on Parameter:
+     * ... that.length() ... -- int
+     * ... that.sameColorHelper(Color color, ILoColor that) ... -- int
+     * ... that.exactColorInList(ILoColor that) ... -- int
+     * ... that.remove(Color color) ... -- int
+     * ... that.removeAll(Color color) ... -- ILoColor
+     * ... that.inexactColorInList(ILoColor that) ... -- int 
+     * ... that.hasColor(Color color) ... boolean
+     * ... that.inexactFinal(ILoColor that) ... -- int
+     * ... that.getColor(int num) ... -- Color
+     * ... that.removeFirst() ... -- ILoColor 
+     * ... that.drawCircles(WorldImage bkg) ... -- WorldImage
+     * ... that.drawTotalComparison(ILoColor that, WorldImage bkg) ... -- WorldImage
+     * ... that.createRandom(boolean hasRepeats, int length, Random rand) ... -- ILoColor
+     */
+    
+    return that.sameColorHelper(this.first, this.rest);
+  }
+
+  // removes the given color that is the same color as the first circle in this
+  // list
+  public ILoColor remove(Color color) {
+    
+    /*
+     * TEMPLATE
+     * 
+     * Parameters:
+     * ... color ... -- Color
+     */
+    
+    if (this.first.equals(color)) {
+      return this.rest;
+    }
+    else {
+      return new ConsLoColor(this.first, this.rest.remove(color));
+    }
+  }
+
+  // removes the all of the colors from the list that are the same as the given
+  // color
+  public ILoColor removeAll(Color color) {
+    
+    /*
+     * TEMPLATE
+     * 
+     * Parameters:
+     * ... color ... -- Color
+     */
+    
+    if (this.first.equals(color)) {
+      return this.rest.removeAll(color);
+    }
+    else {
+      return new ConsLoColor(this.first, this.rest.remove(color));
+    }
+  }
+
+  // returns the number of the shared colors in this list with the given list
+  // this represents the solution list, while that represents the given list
+  public int inexactColorInList(ILoColor that) {
+    
+    /*
+     * TEMPLATE
+     * 
+     * Parameters:
+     * ... that ... -- ILoColor
+     * 
+     * Method on Parameter:
+     * ... that.length() ... -- int
+     * ... that.sameColorHelper(Color color, ILoColor that) ... -- int
+     * ... that.exactColorInList(ILoColor that) ... -- int
+     * ... that.remove(Color color) ... -- int
+     * ... that.removeAll(Color color) ... -- ILoColor
+     * ... that.inexactColorInList(ILoColor that) ... -- int 
+     * ... that.hasColor(Color color) ... boolean
+     * ... that.inexactFinal(ILoColor that) ... -- int
+     * ... that.getColor(int num) ... -- Color
+     * ... that.removeFirst() ... -- ILoColor 
+     * ... that.drawCircles(WorldImage bkg) ... -- WorldImage
+     * ... that.drawTotalComparison(ILoColor that, WorldImage bkg) ... -- WorldImage
+     * ... that.createRandom(boolean hasRepeats, int length, Random rand) ... -- ILoColor
+     */
+    
+    if (that.hasColor(this.first)) {
+      return 1 + this.rest.inexactColorInList(that.remove(this.first));
+    }
+    else {
+      return this.rest.removeAll(this.first).inexactColorInList(that);
+    }
+  }
+
+  // checks if the given color exists in this list;
+  public boolean hasColor(Color color) {
+    
+    /*
+     * TEMPLATE
+     * 
+     * Parameters:
+     * ... color ... -- Color
+     */
+    
+    return this.first == color || this.rest.hasColor(color);
+  }
+
+  // returns the number of shared colors - the number of exact colors
+  public int inexactFinal(ILoColor that) {
+    
+    /*
+     * TEMPLATE
+     * 
+     * Parameters:
+     * ... that ... -- ILoColor
+     * 
+     * Method on Parameter:
+     * ... that.length() ... -- int
+     * ... that.sameColorHelper(Color color, ILoColor that) ... -- int
+     * ... that.exactColorInList(ILoColor that) ... -- int
+     * ... that.remove(Color color) ... -- int
+     * ... that.removeAll(Color color) ... -- ILoColor
+     * ... that.inexactColorInList(ILoColor that) ... -- int 
+     * ... that.hasColor(Color color) ... boolean
+     * ... that.inexactFinal(ILoColor that) ... -- int
+     * ... that.getColor(int num) ... -- Color
+     * ... that.removeFirst() ... -- ILoColor 
+     * ... that.drawCircles(WorldImage bkg) ... -- WorldImage
+     * ... that.drawTotalComparison(ILoColor that, WorldImage bkg) ... -- WorldImage
+     * ... that.createRandom(boolean hasRepeats, int length, Random rand) ... -- ILoColor
+     */
+    
+    return this.inexactColorInList(that) - this.exactColorInList(that);
+  }
+
+  // returns the color the corresponds to the given number
+  // NOTE: This method fetches the color with respect to the oldest value in this
+  // list
+  // for example, if num = 1, it would get the oldest/inner-most value in this
+  // list.
+  public Color getColor(int num) {
+    
+    /*
+     * TEMPLATE
+     * 
+     * Parameters:
+     * ... num ... -- int
+     */
+    
+    if (num == this.length()) {
+      return this.first;
+    }
+    else {
+      return this.rest.getColor(num);
+    }
+  }
+
+  // removes the first color in this list
+  public ILoColor removeFirst() {
+    return this.rest;
+  }
+
+  // draws the circles on the given background
+  public WorldImage drawCircles(WorldImage bkg) {
+    
+    /*
+     * TEMPLATE
+     * 
+     * Parameters:
+     * ... bkg ... -- WorldImage
+     */
+    
+    WorldImage circle = new CircleImage(22, OutlineMode.SOLID, this.first);
+    WorldImage rect = new RectangleImage(50, 50, OutlineMode.OUTLINE, Color.gray);
+    return this.rest.drawCircles(new BesideImage(new OverlayImage(circle, rect), bkg));
+  }
+
+  // draws the 2 numbers (inexact guesses and inexact guesses) on the board
+  public WorldImage drawTotalComparison(ILoColor that, WorldImage bkg) {
+    
+    /*
+     * TEMPLATE
+     * 
+     * Parameters:
+     * ... that ... -- ILoColor
+     * 
+     * Method on Parameter:
+     * ... that.length() ... -- int
+     * ... that.sameColorHelper(Color color, ILoColor that) ... -- int
+     * ... that.exactColorInList(ILoColor that) ... -- int
+     * ... that.remove(Color color) ... -- int
+     * ... that.removeAll(Color color) ... -- ILoColor
+     * ... that.inexactColorInList(ILoColor that) ... -- int 
+     * ... that.hasColor(Color color) ... boolean
+     * ... that.inexactFinal(ILoColor that) ... -- int
+     * ... that.getColor(int num) ... -- Color
+     * ... that.removeFirst() ... -- ILoColor 
+     * ... that.drawCircles(WorldImage bkg) ... -- WorldImage
+     * ... that.drawTotalComparison(ILoColor that, WorldImage bkg) ... -- WorldImage
+     * ... that.createRandom(boolean hasRepeats, int length, Random rand) ... -- ILoColor
+     */
+    
+    return new BesideImage(
+        new OverlayImage(
+            new TextImage(Integer.toString(this.exactColorInList(that)), 30, Color.black),
+            new RectangleImage(50, 50, OutlineMode.OUTLINE, Color.gray)),
+        new OverlayImage(new TextImage(Integer.toString(this.inexactFinal(that)), 30, Color.black),
+            new RectangleImage(50, 50, OutlineMode.OUTLINE, Color.gray)));
+  }
+
+  // creates a random ILoColor based on the given length, random value, and
+  // whether or not it can
+  // have repeats. Uses this ILoColor as a list of possible colors to include.
+  public ILoColor createRandom(boolean hasRepeats, int length, Random rand) {
+    
+    /*
+     * TEMPLATE
+     * 
+     * Parameters:
+     * ... hasRepeats ... -- boolean
+     * ... length ... -- int
+     * ... rand ... -- Random
+     */
+    
+    int randValue = rand.nextInt(this.length()) + 1;
+    Color randColor = this.getColor(randValue);
+
+    if (length == 0) {
+      return new MtLoColor();
+    }
+    else if (!hasRepeats) {
+      return new ConsLoColor(randColor,
+          this.remove(randColor).createRandom(hasRepeats, length - 1, rand));
+    }
+    else {
+      return new ConsLoColor(randColor, this.createRandom(hasRepeats, length - 1, rand));
+    }
+  }
+}
+
+// represents a list of list of colors
+interface ILoLoColor {
+  // returns the length of this OUTSIDE list
+  int lengthOfOuterList();
+
+  // returns a picture representing this ILoLoColor on the given background
+  WorldImage drawILoLoColor(WorldImage bkg);
+
+  // returns an image of the exact and inexact comparisons of each list in this
+  // list compared to the given list
+  WorldImage drawAllComparisons(ILoColor that, WorldImage bkg);
+}
+
+class MtLoLoColor implements ILoLoColor {
+
+  /*
+   * TEMPLATE
+   *
+   * METHODS
+   * 
+   * ... this.lengthOfOuterList() ... -- int
+   * ... this.drawILoLoColor(WorldImage bkg) ... -- WorldImage
+   * ... this.drawAllComparisons(ILoColor that, WorldImage bkg) ... -- WorldImage
+   */
+  
+  // returns the length of the empty list of list of colors
+  public int lengthOfOuterList() {
+    return 0;
+  }
+
+  // returns a picture representing this ILoLoColor on the given background
+  public WorldImage drawILoLoColor(WorldImage bkg) {
+    return bkg;
+  }
+
+  // returns the bkg that has been accumulating
+  public WorldImage drawAllComparisons(ILoColor that, WorldImage bkg) {
+    return bkg;
+  }
+
+}
+
+//represents a list of lists for ConsLoLoColor
+class ConsLoLoColor implements ILoLoColor {
+  ILoColor first;
+  ILoLoColor rest;
+
+  public ConsLoLoColor(ILoColor first, ILoLoColor rest) {
+    this.first = first;
+    this.rest = rest;
+  }
+  
+  /*
+   * TEMPLATE
+   * 
+   * FIELDS
+   * 
+   * ... this.first ... -- ILoColor
+   * ... this.rest ... -- ILoLoColor
+   * 
+   * METHODS
+   * 
+   * ... this.lengthOfOuterList() ... -- int
+   * ... this.drawILoLoColor(WorldImage bkg) ... -- WorldImage
+   * ... this.drawAllComparisons(ILoColor that, WorldImage bkg) ... -- WorldImage
+   * 
+   * METHODS FOR FIELDS
+   * 
+   * ... this.first.length() ... -- int
+   * ... this.first.sameColorHelper(Color color, ILoColor that) ... -- int
+   * ... this.first.exactColorInList(ILoColor that) ... -- int
+   * ... this.first.remove(Color color) ... -- int
+   * ... this.first.removeAll(Color color) ... -- ILoColor
+   * ... this.first.inexactColorInList(ILoColor that) ... -- int 
+   * ... this.first.hasColor(Color color) ... boolean
+   * ... this.first.inexactFinal(ILoColor that) ... -- int
+   * ... this.first.getColor(int num) ... -- Color
+   * ... this.first.removeFirst() ... -- ILoColor 
+   * ... this.first.drawCircles(WorldImage bkg) ... -- WorldImage
+   * ... this.first.drawTotalComparison(ILoColor that, WorldImage bkg) ... -- WorldImage
+   * ... this.first.createRandom(boolean hasRepeats, int length, Random rand) ... -- ILoColor
+   * 
+   * ... this.rest.lengthOfOuterList() ... -- int
+   * ... this.rest.drawILoLoColor(WorldImage bkg) ... -- WorldImage
+   * ... this.rest.drawAllComparisons(ILoColor that, WorldImage bkg) ... -- WorldImage
+   */
+
+  // represents the length of this list (importantly, the outer list, not the
+  // inner)
+  public int lengthOfOuterList() {
+    return 1 + this.rest.lengthOfOuterList();
+  }
+
+  // returns a picture representing this ILoLoColor on the given background
+  public WorldImage drawILoLoColor(WorldImage bkg) {
+    
+    /* TEMPLATE
+     * 
+     * Parameters:
+     * ... bkg ... -- WorldImage
+     */
+    
+    return this.rest.drawILoLoColor(
+        new AboveAlignImage(AlignModeX.LEFT, bkg, this.first.drawCircles(new EmptyImage())));
+  }
+
+  // returns a picture representing all of the comparisons to the given ILoColor
+  // for this ILoLoColor
+  public WorldImage drawAllComparisons(ILoColor that, WorldImage bkg) {
+    
+    /* TEMPLATE
+     * 
+     * Parameters:
+     * ... that ... -- ILoColor
+     * ... bkg ... -- WorldImage
+     * 
+     * Method on Parameters:
+     * ... that.rest.lengthOfOuterList() ... -- int
+     * ... that.rest.drawILoLoColor(WorldImage bkg) ... -- WorldImage
+     * ... that.rest.drawAllComparisons(ILoColor that, WorldImage bkg) ... -- WorldImage
+     */
+    
+    return new AboveAlignImage(AlignModeX.LEFT, this.first.drawTotalComparison(that, bkg),
+        this.rest.drawAllComparisons(that, new EmptyImage()));
+  }
+}
+
+// represents the class that runs the game MasterMind
+class MasterMindGame extends World {
+  boolean hasDuplicates; // can the solution have duplicates of colors?
+  int solutionLength; // length of solution
+  int guesses; // the number of complete rows of guesses remaining
+  ILoColor posColors; // the number of colors that can be used
+  ILoColor solution; // the list of colors that represents the solution
+  ILoColor currentGuess; // the list of colors that represents the current row of guesses
+  ILoLoColor pastGuesses; // the list of list of colors that includes all the past guesses
+
+  MasterMindGame(boolean hasDuplicates, int solutionLength, int guesses, ILoColor posColors,
+      ILoColor solution, ILoColor currentGuess, ILoLoColor pastGuesses) {
+    this.hasDuplicates = new Utils().checkEnoughColors(hasDuplicates, solutionLength, posColors,
+        "not enough colors");
+    this.solutionLength = new Utils().checkLessThan(solutionLength, "invalid solution length");
+    this.guesses = new Utils().checkLessThan(guesses, "invalid number of guesses");
+    this.posColors = new Utils().checkEmpty(posColors, "0 colors");
+    this.solution = solution;
+    this.currentGuess = currentGuess;
+    this.pastGuesses = pastGuesses;
+  }
+
+  /* TEMPLATE:
+   * Fields:
+   * ... this.hasDuplicates ...    -- boolean
+   * ... this.solutionLength ...  -- int
+   * ... this.guesses ...  -- int
+   * ... this.posColors ... -- ILoColor
+   * ... this.solution ... -- ILoColor
+   * ... this.currentGuess ... -- ILoColor
+   * ... this.pastGuess ... -- ILoLoColor
+   * 
+   * Methods:
+   * ... this.makeScene() ...  -- WorldScene
+   * ... this.makeBkg() ... -- WorldScene
+   * ... this.makeBlackRect() ... -- WorldImage
+   * ... this.drawPosColors() ... -- WorldImage
+   * ... this.makeEmptyCircles() ... -- WorldImage
+   * ... this.drawEmptyRows(int rows, WorldImage bkg) ... -- WorldImage
+   * ... this.drawOneRow(int remainingInRow, WorldImage bkg) ... -- WorldImage 
+   * ... this.lastScene(String msg) ... -- WorldScene
+   * 
+   * Methods on Fields :
+   * ... this.posColors.length() ... -- int
+   * ... this.posColors.sameColorHelper(Color color, ILoColor that) ... -- int
+   * ... this.posColors.exactColorInList(ILoColor that) ... -- int
+   * ... this.posColors.remove(Color color) ... -- int
+   * ... this.posColors.removeAll(Color color) ... -- ILoColor
+   * ... this.posColors.inexactColorInList(ILoColor that) ... -- int 
+   * ... this.posColors.hasColor(Color color) ... boolean
+   * ... this.posColors.inexactFinal(ILoColor that) ... -- int
+   * ... this.posColors.getColor(int num) ... -- Color
+   * ... this.posColors.removeFirst() ... -- ILoColor 
+   * ... this.posColors.drawCircles(WorldImage bkg) ... -- WorldImage
+   * ... this.posColors.drawTotalComparison(ILoColor that, WorldImage bkg) ... -- WorldImage
+   * ... this.posColors.createRandom(boolean hasRepeats, int length, Random rand) ... -- ILoColor
+   * 
+   * ... this.solution.length() ... -- int
+   * ... this.solution.sameColorHelper(Color color, ILoColor that) ... -- int
+   * ... this.solution.exactColorInList(ILoColor that) ... -- int
+   * ... this.solution.remove(Color color) ... -- int
+   * ... this.solution.removeAll(Color color) ... -- ILoColor
+   * ... this.solution.inexactColorInList(ILoColor that) ... -- int 
+   * ... this.solution.hasColor(Color color) ... boolean
+   * ... this.solution.inexactFinal(ILoColor that) ... -- int
+   * ... this.solution.getColor(int num) ... -- Color
+   * ... this.solution.removeFirst() ... -- ILoColor 
+   * ... this.solution.drawCircles(WorldImage bkg) ... -- WorldImage
+   * ... this.solution.drawTotalComparison(ILoColor that, WorldImage bkg) ... -- WorldImage
+   * ... this.solution.createRandom(boolean hasRepeats, int length, Random rand) ... -- ILoColor
+   * 
+   * ... this.currentGuess.length() ... -- int
+   * ... this.currentGuess.sameColorHelper(Color color, ILoColor that) ... -- int
+   * ... this.currentGuess.exactColorInList(ILoColor that) ... -- int
+   * ... this.currentGuess.remove(Color color) ... -- int
+   * ... this.currentGuess.removeAll(Color color) ... -- ILoColor
+   * ... this.currentGuess.inexactColorInList(ILoColor that) ... -- int 
+   * ... this.currentGuess.hasColor(Color color) ... boolean
+   * ... this.currentGuess.inexactFinal(ILoColor that) ... -- int
+   * ... this.currentGuess.getColor(int num) ... -- Color
+   * ... this.currentGuess.removeFirst() ... -- ILoColor 
+   * ... this.currentGuess.drawCircles(WorldImage bkg) ... -- WorldImage
+   * ... this.currentGuess.drawTotalComparison(ILoColor that, WorldImage bkg) ... -- WorldImage
+   * ... this.currentGuess.createRandom(boolean hasRepeats, int length, Random rand) ... -- ILoColor
+   * 
+   * ... this.pastGuesses.lengthOfOuterList() ... -- int
+   * ... this.pastGuesses.drawILoLoColor(WorldImage bkg) ... -- WorldImage
+   * ... this.pastGuesses.drawAllComparisons(ILoColor that, WorldImage bkg) ... -- WorldImage
+   */
+  
+  // constructor that is required by the game itself
+  MasterMindGame(boolean hasDuplicates, int solutionLength, int guesses, ILoColor posColors) {
+    this(hasDuplicates, solutionLength, guesses, posColors, new Random());
+  }
+
+  // constructor that can be utilized to create seeded random games
+  MasterMindGame(boolean hasDuplicates, int solutionLength, int guesses, ILoColor posColors,
+      Random rand) {
+    this(hasDuplicates, solutionLength, guesses, posColors,
+        posColors.createRandom(hasDuplicates, solutionLength, rand), new MtLoColor(),
+        new MtLoLoColor());
+  }
+
+  // topleft = (0, 0)
+  // makes the scene for the game with the game image and background image
+  public WorldScene makeScene() {
+    int width = (Math.max(this.solutionLength, this.posColors.length()) + 2) * 50;
+    int height = (this.guesses + 2) * 50;
+    WorldImage colorBackground = new RectangleImage(width, height, OutlineMode.SOLID, Color.gray);
+
+    return new WorldScene(width, height).placeImageXY(new OverlayOffsetAlign(AlignModeX.LEFT,
+        AlignModeY.MIDDLE, this.makeBkg(), 0, 0, colorBackground), width / 2, height / 2);
+  }
+
+  // draws the background with all the game circles on it
+  public WorldImage makeBkg() {
+    WorldImage mtCircles = this.makeEmptyCircles();
+    WorldImage posCircles = this.drawPosColors(); // used just to be clear
+    WorldImage blackRect = this.makeBlackRect();
+    WorldImage prevGuess = new BesideImage(this.pastGuesses.drawILoLoColor(new EmptyImage()),
+        this.pastGuesses.drawAllComparisons(this.solution, new EmptyImage()));
+    WorldImage currGuess = this.currentGuess.drawCircles(new EmptyImage());
+    WorldImage totalGuess = new OverlayOffsetAlign(AlignModeX.LEFT, AlignModeY.BOTTOM,
+        new AboveAlignImage(AlignModeX.LEFT, currGuess, prevGuess), 0, 0, mtCircles);
+    return new AboveAlignImage(AlignModeX.LEFT, blackRect, totalGuess, posCircles);
+  }
+
+  // creates the black rectangle at the top of the screen
+  public WorldImage makeBlackRect() {
+    return new RectangleImage(50 * this.solutionLength, 50, OutlineMode.SOLID, Color.black);
+  }
+
+  // draws the row of circles that represents the possible colors
+  public WorldImage drawPosColors() {
+    return this.posColors.drawCircles(new EmptyImage());
+  }
+
+  // draws the empty circles for the guesses that have not been made yet
+  public WorldImage makeEmptyCircles() {
+    return this.drawEmptyRows(this.guesses, new EmptyImage());
+  }
+
+  // Helper function for makeEmptyCircles that recursively calls itself
+  public WorldImage drawEmptyRows(int rows, WorldImage bkg) { 
+    
+    /* TEMPLATE:
+     * Parameters :
+     * ... rows ... int
+     * ... bkg ... WorldImage
+     */
+    
+    if (rows == 0) {
+      return bkg;
+    }
+    else {
+      return this.drawEmptyRows(rows - 1, new AboveAlignImage(AlignModeX.LEFT,
+          this.drawOneRow(this.solutionLength, new EmptyImage()), bkg));
+    }
+  }
+
+  // Helper function for draw EmptyRows that draws a single row of empty circles
+  public WorldImage drawOneRow(int remainingInRow, WorldImage bkg) {
+    
+    /* TEMPLATE:
+     * Parameters :
+     * ... remainingInRow ... int
+     * ... bkg ... WorldImage
+     */
+    
+    if (remainingInRow == 0) {
+      return bkg;
+    }
+    else {
+      return this.drawOneRow(remainingInRow - 1,
+          new BesideImage(bkg,
+              new OverlayImage(new CircleImage(20, OutlineMode.OUTLINE, Color.black),
+                  new RectangleImage(50, 50, OutlineMode.OUTLINE, Color.gray))));
+    }
+  }
+
+  // creates the last scene shown when the game ends.
+  public WorldScene lastScene(String msg) {
+    
+    /* TEMPLATE:
+     * Parameters :
+     * ... msg ... int
+     */
+
+    MasterMindGame finalWorld = new MasterMindGame(this.hasDuplicates, this.solutionLength,
+        this.guesses, this.posColors, this.solution, new MtLoColor(),
+        new ConsLoLoColor(this.currentGuess, this.pastGuesses));
+    int width = (Math.max(this.solutionLength, this.posColors.length()) + 2) * 50;
+    int coverCardWidth = this.solutionLength * 50;
+    WorldImage coverCard = new RectangleImage(coverCardWidth, 50, OutlineMode.SOLID, Color.gray);
+    WorldImage solutionCard = new OverlayImage(
+        this.solution.drawCircles(new EmptyImage()).movePinholeTo(new Posn(0, 0)), coverCard);
+    WorldImage textBox = new RectangleImage(width - coverCardWidth, 50, OutlineMode.SOLID,
+        Color.gray);
+    WorldImage text = new OverlayImage(new TextImage(msg, 30, Color.black), textBox);
+    return finalWorld.makeScene().placeImageXY(new BesideImage(solutionCard, text), width / 2, 25);
+  }
+
+  // handles all of the key events that are relevant to the game (ie numbers,
+  // backspace, and enter)
+  public World onKeyEvent(String key) {
+    
+    /* TEMPLATE:
+     * Parameters :
+     * ... key ... int
+     */
+    
+    if ("123456789".substring(0, this.posColors.length()).contains(key)) {
+      if (this.currentGuess.length() == this.solutionLength) {
+        return this;
+      }
+      else {
+        return new MasterMindGame(this.hasDuplicates, this.solutionLength, this.guesses,
+            this.posColors, this.solution,
+            new ConsLoColor(this.posColors.getColor(Integer.valueOf(key)), this.currentGuess),
+            this.pastGuesses);
+      }
+    }
+    else if (key.equals("backspace")) {
+      return new MasterMindGame(this.hasDuplicates, this.solutionLength, this.guesses,
+          this.posColors, this.solution, this.currentGuess.removeFirst(), this.pastGuesses);
+    }
+    else if (key.equals("enter")) {
+      if (this.currentGuess.length() == this.solutionLength) {
+        if (this.currentGuess.exactColorInList(this.solution) == this.solutionLength) {
+          return this.endOfWorld("Win!"); // what to return?
+        }
+        else if (this.guesses - 1 == this.pastGuesses.lengthOfOuterList()) {
+          return this.endOfWorld("Lose!"); // what to return?
+        }
+        else {
+          return new MasterMindGame(this.hasDuplicates, this.solutionLength, this.guesses,
+              this.posColors, this.solution, new MtLoColor(),
+              new ConsLoLoColor(this.currentGuess, this.pastGuesses));
+        }
+      }
+      else {
+        return this;
+      }
+    }
+    else {
+      return this;
+    }
+  }
+
+}
+
+//contains all of the relevant examples and tests for ILoColor, ILoLoColor, and MasterMindGame
+class ExamplesGame {
+
+  Utils util = new Utils();
+
+  ILoColor empty = new MtLoColor();
+  ILoColor cons1 = new ConsLoColor(Color.red, empty);
+  ILoColor cons2 = new ConsLoColor(Color.blue, cons1);
+  ILoColor cons3 = new ConsLoColor(Color.red, cons2);
+  ILoColor cons4 = new ConsLoColor(Color.red,
+      new ConsLoColor(Color.white, new ConsLoColor(Color.green, new MtLoColor())));
+  ILoColor cons9 = new ConsLoColor(Color.red,
+      new ConsLoColor(Color.blue, new ConsLoColor(Color.green, new ConsLoColor(Color.orange,
+          new ConsLoColor(Color.pink, new ConsLoColor(Color.black, new ConsLoColor(Color.cyan,
+              new ConsLoColor(Color.magenta, new ConsLoColor(Color.white, new MtLoColor())))))))));
+
+  ILoColor consLength5 = new ConsLoColor(Color.pink,
+      new ConsLoColor(Color.black, new ConsLoColor(Color.cyan,
+          new ConsLoColor(Color.magenta, new ConsLoColor(Color.white, new MtLoColor())))));
+
+  ILoLoColor emptyLo = new MtLoLoColor();
+  ILoLoColor consCons1 = new ConsLoLoColor(new ConsLoColor(Color.orange, cons1), emptyLo);
+  ILoLoColor consCons2 = new ConsLoLoColor(cons2, consCons1);
+  ILoLoColor consCons3 = new ConsLoLoColor(cons4,
+      new ConsLoLoColor(
+          new ConsLoColor(Color.black,
+              new ConsLoColor(Color.orange, new ConsLoColor(Color.black, empty))),
+          new ConsLoLoColor(new ConsLoColor(Color.black,
+              new ConsLoColor(Color.orange, new ConsLoColor(Color.black, empty))), emptyLo)));
+  ILoLoColor consCons4 = new ConsLoLoColor(cons3, new ConsLoLoColor(cons4, emptyLo));
+
+  MasterMindGame game1 = new MasterMindGame(false, 1, 2,
+      new ConsLoColor(Color.red, new MtLoColor()), new ConsLoColor(Color.red, new MtLoColor()),
+      new MtLoColor(), new MtLoLoColor());
+  MasterMindGame game2 = new MasterMindGame(false, 3, 4,
+      new ConsLoColor(Color.red,
+          new ConsLoColor(Color.white, new ConsLoColor(Color.blue, new MtLoColor()))),
+      new ConsLoColor(Color.white,
+          new ConsLoColor(Color.red, new ConsLoColor(Color.blue, new MtLoColor()))),
+      new ConsLoColor(Color.white,
+          new ConsLoColor(Color.red, new ConsLoColor(Color.blue, new MtLoColor()))),
+      new MtLoLoColor());
+  MasterMindGame game3 = new MasterMindGame(false, 3, 4,
+      new ConsLoColor(Color.red,
+          new ConsLoColor(Color.white, new ConsLoColor(Color.blue, new MtLoColor()))),
+      new ConsLoColor(Color.white,
+          new ConsLoColor(Color.red, new ConsLoColor(Color.blue, new MtLoColor()))),
+      new ConsLoColor(Color.white,
+          new ConsLoColor(Color.red, new ConsLoColor(Color.blue, new MtLoColor()))),
+      new ConsLoLoColor(cons3, new ConsLoLoColor(cons4, new MtLoLoColor())));
+  MasterMindGame game4 = new MasterMindGame(true, 5, 5,
+      new ConsLoColor(Color.green,
+          new ConsLoColor(Color.yellow, new ConsLoColor(Color.orange, new MtLoColor()))),
+      new ConsLoColor(Color.green,
+          new ConsLoColor(Color.yellow,
+              new ConsLoColor(Color.orange,
+                  new ConsLoColor(Color.green, new ConsLoColor(Color.yellow, new MtLoColor()))))),
+      new MtLoColor(), new MtLoLoColor());
+  MasterMindGame game5 = new MasterMindGame(true, 5, 5,
+      new ConsLoColor(Color.green,
+          new ConsLoColor(Color.yellow, new ConsLoColor(Color.orange, new MtLoColor()))),
+      new ConsLoColor(Color.green,
+          new ConsLoColor(Color.yellow,
+              new ConsLoColor(Color.orange,
+                  new ConsLoColor(Color.green, new ConsLoColor(Color.yellow, new MtLoColor()))))),
+      this.consLength5, new MtLoLoColor());
+
+  MasterMindGame seededRandomGameFull = new MasterMindGame(false, 9, 9, cons9, new Random(0));
+  MasterMindGame seededRandomGameRepeats = new MasterMindGame(true, 8, 4,
+      new ConsLoColor(Color.red, new ConsLoColor(Color.black, empty)), new Random(1));
+
+  boolean TestCheckLessThan(Tester t) {
+    return t.checkConstructorException(new IllegalArgumentException("invalid solution length"),
+        "MasterMindGame", true, 0, 1, cons2)
+        && t.checkConstructorException(new IllegalArgumentException("invalid solution length"),
+            "MasterMindGame", true, -100, 1, cons2)
+        && t.checkConstructorException(new IllegalArgumentException("invalid number of guesses"),
+            "MasterMindGame", 1, 0, cons3)
+        && t.checkConstructorException(new IllegalArgumentException("invalid number of guesses"),
+            "MasterMindGame", 1, -10, cons2);
+  }
+
+  boolean TestCheckEmpty(Tester t) {
+    return t.checkConstructorException(new IllegalArgumentException("0 colors"), "MasterMindGame",
+        true, 3, 3, empty);
+  }
+
+  boolean TestEnoughColors(Tester t) {
+    // throws an exception because cons3 only has 3 colors, while the solution
+    // requires 6 with no repeats
+    return t.checkConstructorException(new IllegalArgumentException("not enough colors"),
+        "MasterMindGame", false, 6, 10, cons3);
+  }
+  
+  // this test is not written in the commented section below because we want to have any
+  // unused imports
+  boolean testMakeBkg(Tester t) { 
+    WorldCanvas c = new WorldCanvas(500,500);
+    WorldScene s = new WorldScene(500,500); 
+    return c.drawScene(s.placeImageXY(this.game2.makeBkg(), 250, 250)) && c.show(); 
+  }
+  
+  /*
+   * 
+   * all of these methods are used to test the drawing methods and work, but they
+   * are commented out so that there arent a bunch of tabs that open up when you
+   * try to run the program boolean testDrawCircles(Tester t) 
+   * 
+   * { WorldCanvas c =
+   * new WorldCanvas(500,500); WorldScene s = new WorldScene(500,500); return
+   * c.drawScene(s.placeImageXY(this.cons3.drawCircles(new EmptyImage()), 250,
+   * 250)) && c.show(); }
+   * 
+   * VISUALIZATION of EmptyCircles boolean testMakeEmptyCircles(Tester t) {
+   * WorldCanvas c = new WorldCanvas(500,500); WorldScene s = new
+   * WorldScene(500,500); return
+   * c.drawScene(s.placeImageXY(this.game2.drawEmptyRows(this.game2.guesses, new
+   * EmptyImage()), 250, 250)) && c.show(); }
+   * 
+   *
+   * boolean testPastGuesses(Tester t) { WorldCanvas c = new WorldCanvas(500,500);
+   * WorldScene s = new WorldScene(500,500); return
+   * c.drawScene(s.placeImageXY(this.game3.pastGuesses.drawILoLoColor(new
+   * EmptyImage()), 250, 250)) && c.show(); }
+   * 
+   * 
+   * boolean testDrawExactMatch(Tester t) { WorldCanvas c = new
+   * WorldCanvas(500,500); WorldScene s = new WorldScene(500,500); return
+   * c.drawScene(s.placeImageXY(this.game3.drawExactMatch(), 250, 250)) &&
+   * c.show(); }
+   * 
+   * boolean testDrawTotalComparison(Tester t) { WorldCanvas c = new
+   * WorldCanvas(500,500); WorldScene s = new WorldScene(500,500); return
+   * c.drawScene(s.placeImageXY(this.cons3.drawTotalComparison(this.cons4, new
+   * EmptyImage()), 250, 250)) && c.show(); }
+   * 
+   * 
+   * boolean testMakeBkg(Tester t) { WorldCanvas c = new WorldCanvas(500,500);
+   * WorldScene s = new WorldScene(500,500); return
+   * c.drawScene(s.placeImageXY(this.game3.makeBkg(), 250, 250)) && c.show(); }
+   * 
+   * boolean testMakeScene(Tester t) { WorldCanvas c = new WorldCanvas(500,500);
+   * WorldScene s = this.game3.makeScene(); return c.drawScene(s) && c.show(); }
+   */
+
+  // runs the game itself
+  boolean testGame(Tester t) {
+    // return game4.bigBang(750,750); //tests the all encompassing constructor
+    // return seededRandomGameFull.bigBang(750, 750); //tests the seeded random
+    // constructor
+    return seededRandomGameRepeats.bigBang(750, 750); // test the seeded random constructor with
+    // repeats
+  }
+
+  // tests that the length method gets the appropriate value that represents the
+  // length of the ILoColor
+  boolean testLength(Tester t) {
+    return t.checkExpect(this.empty.length(), 0) && t.checkExpect(this.cons1.length(), 1)
+        && t.checkExpect(this.cons2.length(), 2);
+  }
+
+  // tests that sameColorHelper returns 1 if the first value in the list is the
+  // same as the given color
+  boolean testSameColorHelper(Tester t) {
+    return t.checkExpect(this.empty.sameColorHelper(Color.blue, this.cons1), 0)
+        && t.checkExpect(this.cons1.sameColorHelper(Color.blue, this.cons2), 0)
+        && t.checkExpect(this.cons2.sameColorHelper(Color.blue, this.cons2), 1);
+  }
+
+  // test that exactColorInList returns the number of exact matches in the given
+  // list
+  boolean testExactColorInList(Tester t) {
+    return t.checkExpect(this.empty.exactColorInList(this.cons1), 0)
+        && t.checkExpect(this.cons1.exactColorInList(this.cons2), 0)
+        && t.checkExpect(this.cons2.exactColorInList(this.cons2), 2);
+  }
+
+  // tests that remove removes the first color in the list that matches the given
+  // color
+  boolean testRemove(Tester t) {
+    return t.checkExpect(this.empty.remove(Color.red), this.empty)
+        && t.checkExpect(this.cons1.remove(Color.red), this.empty)
+        && t.checkExpect(this.cons2.remove(Color.blue), this.cons1);
+  }
+
+  // tests that removeAll removes all instances of the given color in this list
+  boolean testRemoveAll(Tester t) {
+    return t.checkExpect(this.empty.removeAll(Color.red), this.empty)
+        && t.checkExpect(this.cons1.removeAll(Color.red), this.empty) && t.checkExpect(
+            this.cons3.removeAll(Color.red), new ConsLoColor(Color.blue, new MtLoColor()));
+  }
+
+  // tests to see that InexactColorInList calculates all of the color matches in
+  // the given list
+  boolean testInexactColorInList(Tester t) {
+    return t.checkExpect(this.empty.inexactColorInList(this.cons1), 0)
+        && t.checkExpect(this.cons1.inexactColorInList(this.cons2), 1)
+        && t.checkExpect(this.cons2.inexactColorInList(this.cons3), 2);
+  }
+
+  // tests to see if hasColor checks to see if this list has the given color
+  boolean testHasColor(Tester t) {
+    return t.checkExpect(this.empty.hasColor(Color.blue), false)
+        && t.checkExpect(this.cons1.hasColor(Color.red), true)
+        && t.checkExpect(this.cons2.hasColor(Color.red), true);
+  }
+
+  // tests to see if inexactFinal returns the inexact matches, minus the exact
+  // matches
+  boolean testinexactFinal(Tester t) {
+    return t.checkExpect(this.empty.inexactFinal(this.cons1), 0)
+        && t.checkExpect(this.cons1.inexactFinal(this.cons2), 1)
+        && t.checkExpect(this.cons2.inexactFinal(this.cons3), 2)
+        && t.checkExpect(this.cons3.inexactFinal(new ConsLoColor(Color.black,
+            new ConsLoColor(Color.blue, new ConsLoColor(Color.green, this.empty)))), 0);
+  }
+
+  // tests to see if the getColor method pulls the colors from the list in the
+  // correct order
+  // Oldest value in the list == 1 (see notes at the top for more explanation)
+  boolean testGetColor(Tester t) {
+    return t.checkException(new IllegalStateException("Number too large for this list: 1"),
+        new MtLoColor(), "getColor", 1) && t.checkExpect(cons1.getColor(1), Color.red)
+        && t.checkExpect(cons2.getColor(2), Color.blue);
+  }
+
+  // tests to see if the method removes the first value in a list
+  boolean testRemoveFirst(Tester t) {
+    return t.checkExpect(empty.removeFirst(), empty) && t.checkExpect(cons1.removeFirst(), empty)
+        && t.checkExpect(cons2.removeFirst(), new ConsLoColor(Color.red, new MtLoColor()));
+  }
+
+  // tests to see if draw circles draws the circles beside each other in the
+  // correct order
+  boolean testDrawCircles(Tester t) {
+    return t.checkExpect(this.cons2.drawCircles(new EmptyImage()),
+        new BesideImage(
+            new OverlayImage(new CircleImage(22, OutlineMode.SOLID, Color.red),
+                new RectangleImage(50, 50, OutlineMode.OUTLINE, Color.gray)),
+            new BesideImage(
+                new OverlayImage(new CircleImage(22, OutlineMode.SOLID, Color.blue),
+                    new RectangleImage(50, 50, OutlineMode.OUTLINE, Color.gray)),
+                new EmptyImage())));
+  }
+
+  // tests to see if draw total comparison correctly draws the image
+  boolean testDrawTotalComparison(Tester t) {
+    return t.checkExpect(this.cons2.drawTotalComparison(this.cons2, new EmptyImage()),
+        new BesideImage(
+            new OverlayImage(new TextImage(Integer.toString(2), 30, Color.black),
+                new RectangleImage(50, 50, OutlineMode.OUTLINE, Color.gray)),
+            new OverlayImage(new TextImage(Integer.toString(0), 30, Color.black),
+                new RectangleImage(50, 50, OutlineMode.OUTLINE, Color.gray))))
+        && t.checkExpect(
+            this.cons2.drawTotalComparison(
+                new ConsLoColor(Color.black, new ConsLoColor(Color.blue, this.empty)),
+                new EmptyImage()),
+            new BesideImage(
+                new OverlayImage(new TextImage(Integer.toString(0), 30, Color.black),
+                    new RectangleImage(50, 50, OutlineMode.OUTLINE, Color.gray)),
+                new OverlayImage(new TextImage(Integer.toString(1), 30, Color.black),
+                    new RectangleImage(50, 50, OutlineMode.OUTLINE, Color.gray))))
+        && t.checkExpect(this.cons2.drawTotalComparison(
+            new ConsLoColor(Color.red, new ConsLoColor(Color.blue, this.empty)), new EmptyImage()),
+            new BesideImage(
+                new OverlayImage(new TextImage(Integer.toString(0), 30, Color.black),
+                    new RectangleImage(50, 50, OutlineMode.OUTLINE, Color.gray)),
+                new OverlayImage(new TextImage(Integer.toString(2), 30, Color.black),
+                    new RectangleImage(50, 50, OutlineMode.OUTLINE, Color.gray))));
+  }
+
+  // tests to see if createRandom works as intended
+  boolean testCreateRandom(Tester t) {
+    Random test1 = new Random(2);
+    Random test2 = new Random(3);
+
+    Color firstColorTest2 = this.cons4.getColor(test2.nextInt(3) + 1);
+    Color secondColorTest2 = this.cons4.remove(firstColorTest2).getColor(test2.nextInt(2) + 1);
+    Color thirdColorTest2 = this.cons4.remove(firstColorTest2).remove(secondColorTest2)
+        .getColor(test2.nextInt(1) + 1);
+
+    return t.checkExpect(this.cons2.createRandom(true, 4, new Random(2)),
+        new ConsLoColor(this.cons2.getColor(test1.nextInt(2) + 1),
+            new ConsLoColor(this.cons2.getColor(test1.nextInt(2) + 1),
+                new ConsLoColor(this.cons2.getColor(test1.nextInt(2) + 1),
+                    new ConsLoColor(this.cons2.getColor(test1.nextInt(2) + 1), empty)))))
+        && t.checkExpect(this.cons4.createRandom(false, 3, new Random(3)),
+            new ConsLoColor(firstColorTest2,
+                new ConsLoColor(secondColorTest2, new ConsLoColor(thirdColorTest2, empty))));
+  }
+
+  // tests to see if lengthOfOuterList returns the length of this OUTSIDE list
+  boolean testLengthOfOuterList(Tester t) {
+    return t.checkExpect(this.consCons3.lengthOfOuterList(), 3)
+        && t.checkExpect(this.consCons1.lengthOfOuterList(), 1)
+        && t.checkExpect(this.emptyLo.lengthOfOuterList(), 0);
+  }
+
+  // tests to see if drawILoLoColor returns a picture representing this ILoLoColor
+  // on the given background
+  boolean testDrawILoLoColor(Tester t) {
+    return t.checkExpect(this.consCons4.drawILoLoColor(new EmptyImage()),
+        new AboveAlignImage(AlignModeX.LEFT,
+            new AboveAlignImage(AlignModeX.LEFT, new EmptyImage(),
+                this.cons3.drawCircles(new EmptyImage())),
+            this.cons4.drawCircles(new EmptyImage())));
+  }
+
+  // tests to see if returns an image of the exact and inexact comparisons of each
+  // list in this
+  // list compared to the given list
+  boolean testDrawAllComparisons(Tester t) {
+    return t.checkExpect(this.consCons4.drawAllComparisons(cons4, new EmptyImage()),
+        new AboveAlignImage(AlignModeX.LEFT,
+            cons3.drawTotalComparison(this.cons4, new EmptyImage()), new AboveAlignImage(
+                AlignModeX.LEFT, cons4.drawTotalComparison(this.cons4, new EmptyImage()))));
+  }
+
+  // tests to make sure that each On Key Event does exactly what it says it will
+  // do
+  boolean testOnKeyEvent(Tester t) {
+    return t
+        .checkExpect(this.game4.onKeyEvent("1"), new MasterMindGame(true, 5, 5,
+            new ConsLoColor(Color.green,
+                new ConsLoColor(Color.yellow, new ConsLoColor(Color.orange, new MtLoColor()))),
+            new ConsLoColor(Color.green, new ConsLoColor(Color.yellow,
+                new ConsLoColor(Color.orange,
+                    new ConsLoColor(Color.green, new ConsLoColor(Color.yellow, new MtLoColor()))))),
+            new ConsLoColor(Color.orange, this.empty), new MtLoLoColor()))
+        && t.checkExpect(this.game4.onKeyEvent("2"), new MasterMindGame(true, 5, 5,
+            new ConsLoColor(Color.green,
+                new ConsLoColor(Color.yellow, new ConsLoColor(Color.orange, new MtLoColor()))),
+            new ConsLoColor(Color.green, new ConsLoColor(Color.yellow,
+                new ConsLoColor(Color.orange,
+                    new ConsLoColor(Color.green, new ConsLoColor(Color.yellow, new MtLoColor()))))),
+            new ConsLoColor(Color.yellow, this.empty), new MtLoLoColor()))
+        && t.checkExpect(this.game4.onKeyEvent("backspace"), this.game4)
+        && t.checkExpect(this.game4.onKeyEvent("enter"), this.game4)
+        && t.checkExpect(this.game3.onKeyEvent("backspace"),
+            new MasterMindGame(false, 3, 4,
+                new ConsLoColor(Color.red,
+                    new ConsLoColor(Color.white, new ConsLoColor(Color.blue, new MtLoColor()))),
+                new ConsLoColor(Color.white,
+                    new ConsLoColor(Color.red, new ConsLoColor(Color.blue, new MtLoColor()))),
+                new ConsLoColor(Color.red, new ConsLoColor(Color.blue, new MtLoColor())),
+                new ConsLoLoColor(cons3, new ConsLoLoColor(cons4, new MtLoLoColor()))))
+        && t.checkExpect(this.game3.onKeyEvent("1"), this.game3)
+        // this brings the game to the end world state, but leaves the world state
+        // unchanged
+        && t.checkExpect(this.game3.onKeyEvent("enter"), this.game3)
+        && t.checkExpect(this.game5.onKeyEvent("enter"), new MasterMindGame(true, 5, 5,
+            new ConsLoColor(Color.green,
+                new ConsLoColor(Color.yellow, new ConsLoColor(Color.orange, new MtLoColor()))),
+            new ConsLoColor(Color.green, new ConsLoColor(Color.yellow,
+                new ConsLoColor(Color.orange,
+                    new ConsLoColor(Color.green, new ConsLoColor(Color.yellow, new MtLoColor()))))),
+            new MtLoColor(), new ConsLoLoColor(this.consLength5, new MtLoLoColor())));
+  }
+
+  boolean testLastScene(Tester t) {
+    MasterMindGame finalWorld = new MasterMindGame(false, 3, 4,
+        new ConsLoColor(Color.red,
+            new ConsLoColor(Color.white, new ConsLoColor(Color.blue, new MtLoColor()))),
+        new ConsLoColor(Color.white,
+            new ConsLoColor(Color.red, new ConsLoColor(Color.blue, new MtLoColor()))),
+        new MtLoColor(),
+        new ConsLoLoColor(
+            new ConsLoColor(Color.white,
+                new ConsLoColor(Color.red, new ConsLoColor(Color.blue, new MtLoColor()))),
+            new MtLoLoColor()));
+    int width = 250;
+    int coverCardWidth = 150;
+    WorldImage coverCard = new RectangleImage(coverCardWidth, 50, OutlineMode.SOLID, Color.gray);
+    WorldImage solutionCard = new OverlayImage(new ConsLoColor(Color.white,
+        new ConsLoColor(Color.red, new ConsLoColor(Color.blue, new MtLoColor())))
+            .drawCircles(new EmptyImage()).movePinholeTo(new Posn(0, 0)),
+        coverCard);
+    WorldImage textBox = new RectangleImage(width - coverCardWidth, 
+        50, OutlineMode.SOLID, Color.gray);
+    WorldImage text = new OverlayImage(new TextImage("Win!", 30,Color.black), textBox);
+    return t.checkExpect(this.game2.lastScene("Win!"), finalWorld.makeScene().
+        placeImageXY(new BesideImage(solutionCard, text), width / 2, 25));
+  }
+}
